@@ -329,6 +329,14 @@ class UnitsParser extends JavaTokenParsers {
       case (defs, _) => defs
     }
   }
+
+  def define(spec: String) {
+    val result = parseAll(definition, spec) match {
+      case Success(sdef, _) => sdef
+      case _ => throw new IllegalArgumentException("Invalid definition: %s".format(spec))
+    }
+    _defs += (result.name -> result)
+  }
  
 }
 
