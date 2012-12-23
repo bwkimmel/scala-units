@@ -216,7 +216,9 @@ class UnitsParser extends JavaTokenParsers {
     "!" ^^ { case _ => PrimitiveUnits("!") }
 
   lazy val symbol: Parser[Units] =
-    ident ^^ { case symbol => UnitsRef(symbol, resolve) }
+    ident ^? {
+      case symbol if symbol != "per" => UnitsRef(symbol, resolve)
+    }
 
   lazy val decimal: Parser[Units] =
     floatingPointNumber ^^ { case value => DecimalScalar(BigDecimal(value)) }
@@ -244,6 +246,7 @@ class UnitsParser extends JavaTokenParsers {
     }
 
   lazy val quotient: Parser[Units] =
+    product ~ "per" ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) } |
     product ~ "/" ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) }
 
   lazy val reciprocal: Parser[Units] =
