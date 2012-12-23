@@ -311,13 +311,12 @@ class UnitsParser extends JavaTokenParsers {
     case _ => throw new IllegalArgumentException("Invalid units: %s".format(s))
   }
 
-  def definitions(source: Source): Map[String, SymbolDef] = {
+  def load(source: Source) {
     val seed: Map[String, SymbolDef] = Map.empty
-    _defs = lines(source).map(parseAll(definition, _)).foldLeft(seed) {
+    _defs ++= lines(source).map(parseAll(definition, _)).foldLeft(seed) {
       case (defs, Success(sdef, _)) => defs + (sdef.name -> sdef)
       case (defs, _) => defs
     }
-    _defs
   }
  
 }
