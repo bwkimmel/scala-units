@@ -16,6 +16,13 @@ sealed trait Units {
   def canConvertTo(that: Units): Boolean =
     this.dimensions == that.dimensions
 
+  def convertTo(that: Units): Units = {
+    val ratio = QuotientUnits(this, that).canonical
+    if (!ratio.dimensions.isScalar)
+      throw new IllegalArgumentException("Incompatible units: %s -> %s".format(this, that))
+    ratio * that
+  }
+
   def *(that: Units): Units = ProductUnits(List(this, that))
   def /(that: Units): Units = this * reciprocal
   def reciprocal: Units = ReciprocalUnits(this)
@@ -189,6 +196,11 @@ case class ProductUnits(terms: List[Units]) extends Units {
         case term :: Nil => term
         case terms => ProductUnits(terms)
       }
+  }
+
+  override def *(that: Units): Units = that match {
+    case ProductUnits(rterms) => ProductUnits(terms ::: rterms)
+    case _ => ProductUnits(terms :+ that)
   }
 }
 
