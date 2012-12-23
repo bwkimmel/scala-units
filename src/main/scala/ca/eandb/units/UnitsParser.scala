@@ -3,6 +3,7 @@ package ca.eandb.units
 import scala.util.parsing.combinator.JavaTokenParsers
 import scala.io.Source
 
+
 sealed trait Units {
   def canonical: Units = this
   def isScalar: Boolean = false
@@ -19,7 +20,7 @@ sealed trait Units {
   def convertTo(that: Units): Units = {
     val ratio = QuotientUnits(this, that).canonical
     if (!ratio.dimensions.isScalar)
-      throw new IllegalArgumentException("Incompatible units: %s -> %s".format(this, that))
+      throw new IncompatibleUnitsException(this, that)
     ratio * that
   }
 
@@ -39,6 +40,18 @@ sealed trait Units {
   def termLabel: String = label
   override def toString = label
 }
+
+class IncompatibleUnitsException(from: Units, to: Units)
+  extends IllegalArgumentException("Incompatible units: %s -> %s".format(from, to))
+
+class UnitsParsingException(units: String)
+  extends IllegalArgumentException("Unable to parse units: %s".format(units))
+
+class UnitsDefParsingException(defs: String)
+  extends IllegalArgumentException("Unable to parse unit definition: %s".format(defs))
+
+class UndefinedUnitsException(symbol: String)
+  extends IllegalArgumentException("Cannot resolve symbol: %s".format(symbol))
 
 case class PrimitiveUnits(symbol: String) extends Units {
   def label = symbol
@@ -143,7 +156,10 @@ case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends U
       case (prefix, name) => resolveSplit(prefix, name)
     }
 
-    y.head.canonical
+    y.headOption match {
+      case Some(u) => u.canonical
+      case None => throw new UndefinedUnitsException(symbol)
+    }
   }
 }
 
@@ -374,7 +390,7 @@ class UnitsParser extends JavaTokenParsers {
 
   def parse(s: String): Units = parseAll(units, s) match {
     case Success(u, _) => u
-    case _ => throw new IllegalArgumentException("Invalid units: %s".format(s))
+    case _ => throw new UnitsParsingException(s)
   }
 
   def load(source: Source) {
@@ -388,7 +404,7 @@ class UnitsParser extends JavaTokenParsers {
   def define(spec: String) {
     val result = parseAll(definition, spec) match {
       case Success(sdef, _) => sdef
-      case _ => throw new IllegalArgumentException("Invalid definition: %s".format(spec))
+      case _ => throw new UnitsDefParsingException(spec)
     }
     _defs += (result.name -> result)
   }
