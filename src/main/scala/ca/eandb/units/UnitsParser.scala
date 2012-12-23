@@ -3,44 +3,208 @@ package ca.eandb.units
 import scala.util.parsing.combinator.JavaTokenParsers
 import scala.io.Source
 
-trait Units {
+sealed trait Units {
+  def canonical: Units = this
+  def isScalar: Boolean = false
+  def dimensions = canonical match {
+    case _: Scalar => OneUnits
+    case ProductUnits(terms) =>
+      ProductUnits(terms.filterNot(_.isScalar)).canonical
+    case u => u
+  }
+
+  def canConvertTo(that: Units): Boolean =
+    this.dimensions == that.dimensions
+
+  def *(that: Units): Units = ProductUnits(List(this, that))
+  def /(that: Units): Units = this * reciprocal
+  def reciprocal: Units = ReciprocalUnits(this)
 }
 
-class PrimitiveUnits extends Units
+case class PrimitiveUnits(symbol: String) extends Units
 
-case object OneUnits extends Units
+trait Scalar extends Units {
+  override def isScalar: Boolean = true
+}
 
-case class RationalScalar(n: BigInt, d: BigInt) extends Units
-case class DecimalScalar(value: BigDecimal) extends Units
-case class IntegerScalar(value: BigInt) extends Units
+case object OneUnits extends Scalar {
+  override def *(that: Units) = that
+  override def /(that: Units) = that reciprocal
+  override def reciprocal = this
+}
 
-case class UnitsRef(symbol: String) extends Units
+case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
+  override def canonical = if (n == d) OneUnits else {
+    val r = n gcd d
 
-sealed trait SymbolDef
+    if (r == 1)
+      this
+    else if (r == d)
+      IntegerScalar(n / d)
+    else
+      RationalScalar(n / r, d / r)
+  }
 
-case class UnitDef(name: String, units: Units) extends SymbolDef
-case class PrefixDef(name: String, units: Units) extends SymbolDef
+  override def *(that: Units) = that match {
+    case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2)
+    case IntegerScalar(n2) => RationalScalar(n * n2, d)
+    case DecimalScalar(x) => DecimalScalar(x * (BigDecimal(n) / BigDecimal(d)))
+    case _ => ProductUnits(List(this, that))
+  }
 
-case class QuotientUnits(n: Units, d: Units) extends Units
-case class ReciprocalUnits(u: Units) extends Units
+  override def reciprocal = RationalScalar(d, n)
+}
 
-case class PowerUnits(base: Units, exp: Int) extends Units
+case class DecimalScalar(value: BigDecimal) extends Scalar {
+  override def canonical = value.toBigIntExact match {
+    case Some(n) => IntegerScalar(n).canonical
+    case None => this
+  }
 
-case class ProductUnits(terms: List[Units]) extends Units
+  override def *(that: Units) = that match {
+    case RationalScalar(n, d) => DecimalScalar(value * (BigDecimal(n) / BigDecimal(d)))
+    case IntegerScalar(n) => DecimalScalar(value * BigDecimal(n))
+    case DecimalScalar(x) => DecimalScalar(value * x)
+    case _ => ProductUnits(List(this, that))
+  }
 
-object UnitsParsers extends JavaTokenParsers {
+  override def reciprocal = DecimalScalar(BigDecimal(1) / value)
+}
+
+case class IntegerScalar(value: BigInt) extends Scalar {
+  override def canonical = if (value == 1) OneUnits else this
+  override def reciprocal = RationalScalar(1, value)
+
+  override def *(that: Units) = that match {
+    case RationalScalar(n, d) => RationalScalar(value * n, d)
+    case IntegerScalar(n) => IntegerScalar(value * n)
+    case DecimalScalar(x) => DecimalScalar(BigDecimal(value) * x)
+    case _ => ProductUnits(List(this, that))
+  }
+}
+
+case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends Units {
+  override def canonical = resolve canonical
+
+  private def resolve: Units = {
+    val plural = "^(.*)s$".r
+
+    def splits(s: String): Seq[(String, String)] =
+      for (i <- 0 to s.length) yield (s splitAt i)
+
+    def resolveSplit(prefix: String, name: String) = (defs("%s-" format prefix), defs(name)) match {
+      case (Some(PrefixDef(_, scale)), Some(SymbolDef(_, base))) =>
+        Some(ProductUnits(List(scale, base)))
+      case _ => None
+    }
+
+    val x: Seq[(String, String)] = symbol match {
+      case plural(singular) => Stream(symbol, singular) flatMap splits
+      case _ => splits(symbol)
+    }
+    
+    val y: Seq[Units] = x flatMap {
+      case ("", name) => defs(name).map(_.units)
+      case (prefix, "") => defs("%s-" format prefix).map(_.units)
+      case (prefix, name) => resolveSplit(prefix, name)
+    }
+
+    y.head.canonical
+  }
+}
+
+sealed abstract case class SymbolDef(name: String, units: Units)
+
+case class UnitDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
+case class PrefixDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
+
+case class QuotientUnits(n: Units, d: Units) extends Units {
+  override def canonical =
+    ProductUnits(List(n, PowerUnits(d, -1))).canonical
+}
+
+case class ReciprocalUnits(u: Units) extends Units {
+  override def canonical =
+    PowerUnits(u, -1).canonical
+}
+
+case class PowerUnits(base: Units, exp: Int) extends Units {
+  override def canonical = (base.canonical, exp) match {
+    case (b, 0) => OneUnits
+    case (b, 1) => b
+    case (ProductUnits(terms), e) => ProductUnits(terms.map(PowerUnits(_, e))).canonical
+    case (PowerUnits(b, e1), e2) => PowerUnits(b, e1 * e2).canonical
+    case (DecimalScalar(x), e) => DecimalScalar(x pow e).canonical
+    case (RationalScalar(n, d), e) if e > 0 => RationalScalar(n pow e, d pow e).canonical
+    case (RationalScalar(n, d), e) if e < 0 => RationalScalar(d pow -e, n pow -e).canonical
+    case (IntegerScalar(x), e) if e > 0 => IntegerScalar(x pow e).canonical
+    case (IntegerScalar(x), e) if e < 0 => RationalScalar(1, x pow -e).canonical
+    case (b, e) => PowerUnits(b, e)
+  }
+}
+
+case class ProductUnits(terms: List[Units]) extends Units {
+  private def flatten(terms: List[Units]): List[Units] = terms.map(_.canonical) flatMap {
+    case ProductUnits(ts) => flatten(ts)
+    case OneUnits => Nil
+    case term => term :: Nil
+  }
+
+  private def key(terms: Units) = terms match {
+    case PowerUnits(PrimitiveUnits(symbol), _) => Some(symbol)
+    case PrimitiveUnits(symbol) => Some(symbol)
+    case _ => None
+  }
+
+  override def canonical = flatten(terms) match {
+    case Nil => OneUnits
+    case term :: Nil => term
+    case terms =>
+      val seed: Units = OneUnits
+      val scalar = terms.collect { case x: Scalar => x }.foldLeft(seed) {
+        case (a, b) => a * b
+      }.canonical
+
+      val dims = terms.groupBy(key).toList.sortBy(_._1) flatMap {
+        case (Some(symbol), ts) =>
+          val u = PrimitiveUnits(symbol)
+          ts.map {
+            case PowerUnits(_, e) => e
+            case _ => 1
+          }.sum match {
+            case 0 => None
+            case 1 => Some(u)
+            case e => Some(PowerUnits(u, e))
+          }
+        case _ => None
+      }
+      
+      val all = scalar match {
+        case OneUnits => dims
+        case s => s :: dims
+      }
+      
+      flatten(all) match {
+        case Nil => OneUnits
+        case term :: Nil => term
+        case terms => ProductUnits(terms)
+      }
+  }
+}
+
+class UnitsParser extends JavaTokenParsers {
+
+  private var _defs: Map[String, SymbolDef] = Map.empty
+  def resolve(s: String): Option[SymbolDef] = _defs.get(s)
 
   lazy val dimensionless: Parser[Units] =
     "!" ~ "dimensionless" ^^^ { OneUnits }
 
   lazy val primitive: Parser[Units] =
-    "!" ^^ { case _ => new PrimitiveUnits }
+    "!" ^^ { case _ => PrimitiveUnits("!") }
 
   lazy val symbol: Parser[Units] =
-    ident ^^ { case symbol => UnitsRef(symbol) }
-
-  lazy val integer: Parser[Units] =
-    wholeNumber ^^ { case value => IntegerScalar(BigInt(value)) }
+    ident ^^ { case symbol => UnitsRef(symbol, resolve) }
 
   lazy val decimal: Parser[Units] =
     floatingPointNumber ^^ { case value => DecimalScalar(BigDecimal(value)) }
@@ -50,8 +214,7 @@ object UnitsParsers extends JavaTokenParsers {
       case n ~_~ d => RationalScalar(BigInt(n), BigInt(d))
     }
 
-  lazy val scalar: Parser[Units] =
-    rational | decimal | integer
+  lazy val scalar: Parser[Units] = rational | decimal
 
   lazy val base: Parser[Units] =
     "(" ~> quotient <~ ")" |
@@ -80,9 +243,11 @@ object UnitsParsers extends JavaTokenParsers {
   lazy val units: Parser[Units] = quotient | reciprocal | product
 
   lazy val definition: Parser[SymbolDef] =
-    ident ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef(name, units) } |
-    ident ~ units ^^ { case name ~ units => UnitDef(name, units) }
-
+    ident ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
+    ident ~ units ^^ {
+      case name ~ PrimitiveUnits(_) => UnitDef(name, PrimitiveUnits(name))
+      case name ~ units => UnitDef(name, units)
+    }
 
   def lines(source: Source): Seq[String] = {
 
@@ -106,11 +271,21 @@ object UnitsParsers extends JavaTokenParsers {
 
   }
 
-  def definitions(source: Source): Seq[SymbolDef] =
-    lines(source).map(parse(definition, _)).flatMap {
-      case Success(sdef, _) => Some(sdef)
-      case _ => None
+  def create(symbol: String): Units = UnitsRef(symbol, resolve)
+
+  def parse(s: String): Units = parseAll(units, s) match {
+    case Success(u, _) => u
+    case _ => throw new IllegalArgumentException("Invalid units: %s".format(s))
+  }
+
+  def definitions(source: Source): Map[String, SymbolDef] = {
+    val seed: Map[String, SymbolDef] = Map.empty
+    _defs = lines(source).map(parseAll(definition, _)).foldLeft(seed) {
+      case (defs, Success(sdef, _)) => defs + (sdef.name -> sdef)
+      case (defs, _) => defs
     }
+    _defs
+  }
  
 }
 
