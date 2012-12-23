@@ -148,15 +148,11 @@ case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends U
       { case pluralType3(root) => root + "y" } : RootFunc
     ) map { _ lift } flatMap { _(symbol) }
 
-    val x = roots flatMap splits
-    
-    val y: Seq[Units] = x flatMap {
+    roots flatMap splits flatMap {
       case ("", name) => defs(name).map(_.units)
       case (prefix, "") => defs("%s-" format prefix).map(_.units)
       case (prefix, name) => resolveSplit(prefix, name)
-    }
-
-    y.headOption match {
+    } headOption match {
       case Some(u) => u.canonical
       case None => throw new UndefinedUnitsException(symbol)
     }
