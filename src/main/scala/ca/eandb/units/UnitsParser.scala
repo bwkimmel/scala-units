@@ -233,6 +233,16 @@ class UnitsParser extends JavaTokenParsers {
       case name3(s) => s
     }
 
+  lazy val nameWithExponent1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*[2-9]""".r
+  lazy val nameWithExponent2 = """^(.*[^_,\.1-9])([2-9])$""".r
+  lazy val nameWithExponent3 = """^(.*_[\d\.,]*[1-9])([2-9])$""".r
+
+  lazy val nameWithExponent: Parser[Units] =
+    nameWithExponent1 ^? {
+      case nameWithExponent2(name, exp) => PowerUnits(UnitsRef(name, resolve), exp.toInt)
+      case nameWithExponent3(name, exp) => PowerUnits(UnitsRef(name, resolve), exp.toInt)
+    }
+
   lazy val symbol: Parser[Units] =
     name ^? {
       case symbol if symbol != "per" => UnitsRef(symbol, resolve)
@@ -255,6 +265,7 @@ class UnitsParser extends JavaTokenParsers {
     scalar
 
   lazy val power: Parser[Units] =
+    nameWithExponent |
     base ~ "^" ~ wholeNumber ^^ { case base ~_~ exp => PowerUnits(base, exp.toInt) }
 
   lazy val product: Parser[Units] =
