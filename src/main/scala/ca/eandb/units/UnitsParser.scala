@@ -223,8 +223,18 @@ class UnitsParser extends JavaTokenParsers {
   lazy val primitive: Parser[Units] =
     "!" ^^ { case _ => PrimitiveUnits("!") }
 
+  lazy val name1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*""".r
+  lazy val name2 = """^(.*[^_,\.1-9])$""".r
+  lazy val name3 = """^(.*_[\d\.,]*[1-9])$""".r
+ 
+  lazy val name: Parser[String] =
+    name1 ^? {
+      case name2(s) => s
+      case name3(s) => s
+    }
+
   lazy val symbol: Parser[Units] =
-    ident ^? {
+    name ^? {
       case symbol if symbol != "per" => UnitsRef(symbol, resolve)
     }
 
@@ -266,8 +276,8 @@ class UnitsParser extends JavaTokenParsers {
   lazy val units: Parser[Units] = quotient | reciprocal | product
 
   lazy val definition: Parser[SymbolDef] =
-    ident ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
-    ident ~ units ^^ {
+    name ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
+    name ~ units ^^ {
       case name ~ PrimitiveUnits(_) => UnitDef(name, PrimitiveUnits(name))
       case name ~ units => UnitDef(name, units)
     }
