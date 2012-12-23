@@ -337,6 +337,9 @@ class UnitsParser extends JavaTokenParsers {
     }
     _defs += (result.name -> result)
   }
+
+  def convert(from: String, to: String): Units =
+    parse(from) convertTo parse(to)
  
 }
 
