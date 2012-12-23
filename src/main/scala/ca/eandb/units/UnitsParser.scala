@@ -23,12 +23,26 @@ sealed trait Units {
     ratio * that
   }
 
-  def *(that: Units): Units = ProductUnits(List(this, that))
+  def in(that: Units): Units = this convertTo that
+
+  def *(that: Units): Units = that match {
+    case ProductUnits(terms) => ProductUnits(this :: terms)
+    case _ => ProductUnits(List(this, that))
+  }
+
   def /(that: Units): Units = this * reciprocal
   def reciprocal: Units = ReciprocalUnits(this)
+
+  def pow(n: Int): Units = PowerUnits(this, n)
+
+  def label: String
+  def termLabel: String = label
+  override def toString = label
 }
 
-case class PrimitiveUnits(symbol: String) extends Units
+case class PrimitiveUnits(symbol: String) extends Units {
+  def label = symbol
+}
 
 trait Scalar extends Units {
   override def isScalar: Boolean = true
@@ -38,6 +52,7 @@ case object OneUnits extends Scalar {
   override def *(that: Units) = that
   override def /(that: Units) = that reciprocal
   override def reciprocal = this
+  def label = "1"
 }
 
 case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
@@ -56,10 +71,11 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
     case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2)
     case IntegerScalar(n2) => RationalScalar(n * n2, d)
     case DecimalScalar(x) => DecimalScalar(x * (BigDecimal(n) / BigDecimal(d)))
-    case _ => ProductUnits(List(this, that))
+    case _ => super.*(that)
   }
 
   override def reciprocal = RationalScalar(d, n)
+  def label = "%s|%s".format(n, d)
 }
 
 case class DecimalScalar(value: BigDecimal) extends Scalar {
@@ -72,10 +88,11 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
     case RationalScalar(n, d) => DecimalScalar(value * (BigDecimal(n) / BigDecimal(d)))
     case IntegerScalar(n) => DecimalScalar(value * BigDecimal(n))
     case DecimalScalar(x) => DecimalScalar(value * x)
-    case _ => ProductUnits(List(this, that))
+    case _ => super.*(that)
   }
 
   override def reciprocal = DecimalScalar(BigDecimal(1) / value)
+  def label = value.toString
 }
 
 case class IntegerScalar(value: BigInt) extends Scalar {
@@ -86,11 +103,13 @@ case class IntegerScalar(value: BigInt) extends Scalar {
     case RationalScalar(n, d) => RationalScalar(value * n, d)
     case IntegerScalar(n) => IntegerScalar(value * n)
     case DecimalScalar(x) => DecimalScalar(BigDecimal(value) * x)
-    case _ => ProductUnits(List(this, that))
+    case _ => super.*(that)
   }
+  def label = value.toString
 }
 
 case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends Units {
+  def label = symbol
   override def canonical = resolve canonical
 
   private def resolve: Units = {
@@ -134,16 +153,25 @@ case class UnitDef(override val name: String, override val units: Units) extends
 case class PrefixDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
 
 case class QuotientUnits(n: Units, d: Units) extends Units {
+  def label = "%s / %s".format(n.termLabel, d.termLabel)
+  override def termLabel = "(%s)".format(label)
   override def canonical =
     ProductUnits(List(n, PowerUnits(d, -1))).canonical
 }
 
 case class ReciprocalUnits(u: Units) extends Units {
+  def label = "/ %s".format(u.termLabel)
+  override def termLabel = "(%s)".format(label)
   override def canonical =
     PowerUnits(u, -1).canonical
 }
 
 case class PowerUnits(base: Units, exp: Int) extends Units {
+  def label = base match {
+    case b : PowerUnits => "(%s)^%d".format(base.label, exp)
+    case _ => "%s^%d".format(base.termLabel, exp)
+  }
+
   override def canonical = (base.canonical, exp) match {
     case (b, 0) => OneUnits
     case (b, 1) => b
@@ -156,9 +184,16 @@ case class PowerUnits(base: Units, exp: Int) extends Units {
     case (IntegerScalar(x), e) if e < 0 => RationalScalar(1, x pow -e).canonical
     case (b, e) => PowerUnits(b, e)
   }
+  override def pow(n: Int): Units = base match {
+    case PowerUnits(b, e) => PowerUnits(b, e * n)
+    case _ => super.pow(n)
+  }
 }
 
 case class ProductUnits(terms: List[Units]) extends Units {
+  def label = terms.map(_.termLabel).mkString(" ")
+  override def termLabel = "(%s)".format(label)
+
   private def flatten(terms: List[Units]): List[Units] = terms.map(_.canonical) flatMap {
     case ProductUnits(ts) => flatten(ts)
     case OneUnits => Nil
@@ -266,7 +301,21 @@ class UnitsParser extends JavaTokenParsers {
 
   lazy val power: Parser[Units] =
     nameWithExponent |
-    base ~ "^" ~ wholeNumber ^^ { case base ~_~ exp => PowerUnits(base, exp.toInt) }
+    base ~ ("^" ~> wholeNumber).+ ^? {
+      case base ~ exps if exps.tail.map(_.toInt).forall(_ >= 0) =>
+        def pow(b: Int, e: Int, acc: Int = 1): Int = (b, e) match {
+          case (_, 0) => acc
+          case (0, _) => 0
+          case _ => pow(b, e - 1, b * acc)
+        }
+
+        def eval(exps: List[Int]): Int = exps match {
+          case Nil => 1
+          case b :: rest => pow(b, eval(rest))
+        }
+
+        PowerUnits(base, eval(exps.map(_.toInt)))
+    }
 
   lazy val product: Parser[Units] =
     term.+ ^^ {
@@ -284,7 +333,13 @@ class UnitsParser extends JavaTokenParsers {
   lazy val term: Parser[Units] =
     dimensionless | primitive | power | base
 
-  lazy val units: Parser[Units] = quotient | reciprocal | product
+  lazy val single: Parser[Units] = quotient | reciprocal | product
+
+  lazy val units: Parser[Units] =
+    rep1sep(single, "*") ^^ {
+      case term :: Nil => term
+      case terms => ProductUnits(terms)
+    }
 
   lazy val definition: Parser[SymbolDef] =
     name ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
@@ -343,6 +398,11 @@ class UnitsParser extends JavaTokenParsers {
  
 }
 
-  
-  
+object Helpers {
+  implicit def decimal2units(value: BigDecimal) = DecimalScalar(value)
+  implicit def bigInt2units(value: BigInt) = IntegerScalar(value)
+  implicit def int2units(value: Int) = IntegerScalar(BigInt(value))
+  implicit def long2units(value: Long) = IntegerScalar(BigInt(value))
+  implicit def double2units(value: Double) = DecimalScalar(BigDecimal(value))
+}
 
