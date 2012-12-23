@@ -94,7 +94,6 @@ case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends U
   override def canonical = resolve canonical
 
   private def resolve: Units = {
-    val plural = "^(.*)s$".r
 
     def splits(s: String): Seq[(String, String)] =
       for (i <- 0 to s.length) yield (s splitAt i)
@@ -105,10 +104,19 @@ case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends U
       case _ => None
     }
 
-    val x: Seq[(String, String)] = symbol match {
-      case plural(singular) => Stream(symbol, singular) flatMap splits
-      case _ => splits(symbol)
-    }
+    val pluralType1 = "^(.*)s$".r
+    val pluralType2 = "^(.*)es$".r
+    val pluralType3 = "^(.*)ies$".r
+
+    type RootFunc = PartialFunction[String, String]
+    val roots: Stream[String] = Stream(
+      { case root => root } : RootFunc,
+      { case pluralType1(root) => root } : RootFunc,
+      { case pluralType2(root) => root } : RootFunc,
+      { case pluralType3(root) => root + "y" } : RootFunc
+    ) map { _ lift } flatMap { _(symbol) }
+
+    val x = roots flatMap splits
     
     val y: Seq[Units] = x flatMap {
       case ("", name) => defs(name).map(_.units)
