@@ -1,6 +1,7 @@
 package ca.eandb.units
 
 import scala.util.parsing.combinator.JavaTokenParsers
+import scala.io.Source
 
 trait Units {
 }
@@ -81,6 +82,35 @@ object UnitsParsers extends JavaTokenParsers {
   lazy val definition: Parser[SymbolDef] =
     ident ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef(name, units) } |
     ident ~ units ^^ { case name ~ units => UnitDef(name, units) }
+
+
+  def lines(source: Source): Seq[String] = {
+
+    val withContinuation = """^([^#]*)\\$""".r
+    val withOptComment = "^([^#]*)(?:#.*)?$".r
+    val blank = """^\s*(?:#.*)?$""".r
+
+    def group(lines: Stream[String], prefix: List[String] = Nil): Stream[String] =
+      (prefix, lines) match {
+        case (Nil, Stream.Empty) => Stream.Empty
+        case (_, Stream.Empty) => sys.error("Line continuation at end of file")
+        case (_, withContinuation(line) #:: rest) => group(rest, line :: prefix)
+        case (_, withOptComment(line) #:: rest) =>
+          (line :: prefix).reverse.mkString.trim match {
+            case "" => group(rest)
+            case full => full #:: group(rest)
+          }
+      }
+
+    group(source.getLines.toStream)
+
+  }
+
+  def definitions(source: Source): Seq[SymbolDef] =
+    lines(source).map(parse(definition, _)).flatMap {
+      case Success(sdef, _) => Some(sdef)
+      case _ => None
+    }
  
 }
 
