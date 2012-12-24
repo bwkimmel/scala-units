@@ -355,7 +355,14 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
 
   def canonical = terms.map(_.canonical).reduce(_ * _)
 
-  override def root = terms.map(_.root).filterNot(_.isScalar) match {
+  override def root = (terms.map(_.root).filterNot(_.isScalar) map {
+    case t: PowerUnits => t
+    case t => PowerUnits(t, 1)
+  } groupBy { _.base } mapValues { _.map(_.exp).sum } flatMap {
+    case (b, 0) => None
+    case (b, 1) => Some(b)
+    case (b, e) => Some(PowerUnits(b, e))
+  }).toList match {
     case Nil => OneUnits
     case t :: Nil => t
     case ts => ProductUnits(ts)
