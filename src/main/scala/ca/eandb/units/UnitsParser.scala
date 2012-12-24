@@ -380,7 +380,7 @@ class UnitsParser extends JavaTokenParsers {
 
   private var _defs: Map[String, SymbolDef] = Map.empty
 
-  case class UnitsRef(symbol: String) extends NonScalarUnits {
+  private case class UnitsRef(symbol: String) extends NonScalarUnits {
     def label = symbol
     def canonical = resolve canonical
   
@@ -419,54 +419,54 @@ class UnitsParser extends JavaTokenParsers {
     }
   }
 
-  lazy val dimensionless: Parser[Units] =
+  private lazy val dimensionless: Parser[Units] =
     "!" ~ "dimensionless" ^^^ { OneUnits }
 
-  lazy val primitive: Parser[Units] =
+  private lazy val primitive: Parser[Units] =
     "!" ^^ { case _ => PrimitiveUnits("!") }
 
-  lazy val name1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*""".r
-  lazy val name2 = """^(.*[^_,\.1-9])$""".r
-  lazy val name3 = """^(.*_[\d\.,]*[1-9])$""".r
+  private lazy val name1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*""".r
+  private lazy val name2 = """^(.*[^_,\.1-9])$""".r
+  private lazy val name3 = """^(.*_[\d\.,]*[1-9])$""".r
  
-  lazy val name: Parser[String] =
+  private lazy val name: Parser[String] =
     name1 ^? {
       case name2(s) => s
       case name3(s) => s
     }
 
-  lazy val nameWithExponent1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*[2-9]""".r
-  lazy val nameWithExponent2 = """^(.*[^_,\.1-9])([2-9])$""".r
-  lazy val nameWithExponent3 = """^(.*_[\d\.,]*[1-9])([2-9])$""".r
+  private lazy val nameWithExponent1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*[2-9]""".r
+  private lazy val nameWithExponent2 = """^(.*[^_,\.1-9])([2-9])$""".r
+  private lazy val nameWithExponent3 = """^(.*_[\d\.,]*[1-9])([2-9])$""".r
 
-  lazy val nameWithExponent: Parser[Units] =
+  private lazy val nameWithExponent: Parser[Units] =
     nameWithExponent1 ^? {
       case nameWithExponent2(name, exp) => PowerUnits(UnitsRef(name), exp.toInt)
       case nameWithExponent3(name, exp) => PowerUnits(UnitsRef(name), exp.toInt)
     }
 
-  lazy val symbol: Parser[Units] =
+  private lazy val symbol: Parser[Units] =
     name ^? {
       case symbol if symbol != "per" => UnitsRef(symbol)
     }
 
-  lazy val decimal: Parser[Units] =
+  private lazy val decimal: Parser[Units] =
     floatingPointNumber ^^ { case value => DecimalScalar(BigDecimal(value)) }
 
-  lazy val rational: Parser[Units] =
+  private lazy val rational: Parser[Units] =
     wholeNumber ~ "|" ~ wholeNumber ^^ {
       case n ~_~ d => RationalScalar(BigInt(n), BigInt(d))
     }
 
-  lazy val scalar: Parser[Units] = rational | decimal
+  private lazy val scalar: Parser[Units] = rational | decimal
 
-  lazy val base: Parser[Units] =
+  private lazy val base: Parser[Units] =
     "(" ~> quotient <~ ")" |
     "(" ~> product <~ ")" |
     symbol |
     scalar
 
-  lazy val power: Parser[Units] =
+  private lazy val power: Parser[Units] =
     nameWithExponent |
     base ~ ("^" ~> wholeNumber).+ ^? {
       case base ~ exps if exps.tail.map(_.toInt).forall(_ >= 0) =>
@@ -484,41 +484,39 @@ class UnitsParser extends JavaTokenParsers {
         PowerUnits(base, eval(exps.map(_.toInt)))
     }
 
-  lazy val product: Parser[Units] =
+  private lazy val product: Parser[Units] =
     term.+ ^^ {
       case term :: Nil => term
       case terms => ProductUnits(terms)
     }
 
-  lazy val quotient: Parser[Units] =
+  private lazy val quotient: Parser[Units] =
     product ~ ("/" | "per") ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) }
 
-  lazy val reciprocal: Parser[Units] =
+  private lazy val reciprocal: Parser[Units] =
     ("/" | "per") ~> product ^^ { case u => ReciprocalUnits(u) }
 
-  lazy val term: Parser[Units] =
+  private lazy val term: Parser[Units] =
     dimensionless | primitive | power | base
 
-  lazy val single: Parser[Units] = quotient | reciprocal | product
+  private lazy val single: Parser[Units] = quotient | reciprocal | product
 
-  lazy val units: Parser[Units] =
+  private lazy val units: Parser[Units] =
     rep1sep(single, "*") ^^ {
       case term :: Nil => term
       case terms => ProductUnits(terms)
     }
 
-  lazy val definition: Parser[SymbolDef] =
+  private lazy val definition: Parser[SymbolDef] =
     name ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
     name ~ units ^^ {
       case name ~ PrimitiveUnits(_) => UnitDef(name, PrimitiveUnits(name))
       case name ~ units => UnitDef(name, units)
     }
 
-  def lines(source: Source): Seq[String] = {
-
+  private def lines(source: Source): Seq[String] = {
     val withContinuation = """^([^#]*)\\$""".r
     val withOptComment = "^([^#]*)(?:#.*)?$".r
-    val blank = """^\s*(?:#.*)?$""".r
 
     def group(lines: Stream[String], prefix: List[String] = Nil): Stream[String] =
       (prefix, lines) match {
@@ -533,7 +531,6 @@ class UnitsParser extends JavaTokenParsers {
       }
 
     group(source.getLines.toStream)
-
   }
 
   def create(symbol: String): Units = UnitsRef(symbol)
