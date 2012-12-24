@@ -42,6 +42,8 @@ sealed trait Units extends Ordered[Units] {
     if (!ratio.isScalar)
       throw new IncompatibleUnitsException(this, that)
     that match {
+      case CanonicalUnits(scale, dimensions) =>
+        CanonicalUnits(scale * ratio.scale, dimensions)
       case ProductUnits(terms) => ProductUnits(ratio.scale :: terms)
       case u => ProductUnits(List(ratio.scale, that))
     }
