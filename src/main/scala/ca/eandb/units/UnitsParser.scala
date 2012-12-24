@@ -98,6 +98,10 @@ trait Scalar extends Units {
     case _ => super./(that)
   }
 
+  def +(that: Scalar): Scalar
+  def -(that: Scalar): Scalar = this + (-that)
+  def unary_- : Scalar
+
   def decimalValue: BigDecimal
 }
 
@@ -159,6 +163,8 @@ case class PrimitiveUnits(symbol: String) extends NonScalarUnits {
 
 case object OneUnits extends Scalar {
   def canonicalScalar = this
+  def +(that: Scalar) = IntegerScalar(1) + that
+  def unary_- = IntegerScalar(-1)
   override def *(that: Scalar) = that
   override def /(that: Scalar) = that.reciprocal.asInstanceOf[Scalar]
   override def pow(n: Int) = this
@@ -178,6 +184,15 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
     else
       RationalScalar(n / r, d / r)
   }
+
+  def +(that: Scalar) = that match {
+    case RationalScalar(n2, d2) => RationalScalar(n * d2 + n2 * d, d * d2).canonicalScalar
+    case IntegerScalar(n2) => RationalScalar(n + n2 * d, d).canonicalScalar
+    case DecimalScalar(x) => DecimalScalar(x + decimalValue).canonicalScalar
+    case OneUnits => RationalScalar(n + d, d).canonicalScalar
+  }
+
+  def unary_- = RationalScalar(-n, d)
 
   override def *(that: Scalar) = that match {
     case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonicalScalar
@@ -203,6 +218,11 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
     case None => this
   }
 
+  def +(that: Scalar) =
+    DecimalScalar(value + that.decimalValue).canonicalScalar
+
+  def unary_- = DecimalScalar(-value).canonicalScalar
+
   override def *(that: Scalar) = that match {
     case OneUnits => this
     case _ => DecimalScalar(value * that.decimalValue).canonicalScalar
@@ -219,6 +239,9 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
 case class IntegerScalar(value: BigInt) extends Scalar {
   def canonicalScalar = if (value == 1) OneUnits else this
   override def reciprocal = RationalScalar(1, value).canonicalScalar
+
+  def +(that: Scalar) = RationalScalar(value, 1) + that
+  def unary_- = IntegerScalar(-value).canonicalScalar
 
   override def *(that: Scalar) = that match {
     case RationalScalar(n, d) => RationalScalar(value * n, d).canonicalScalar
