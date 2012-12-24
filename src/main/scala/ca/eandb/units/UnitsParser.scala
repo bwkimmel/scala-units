@@ -647,6 +647,22 @@ object Helpers {
   implicit def long2units(value: Long) = IntegerScalar(BigInt(value)).canonicalScalar
   implicit def double2units(value: Double) = DecimalScalar(BigDecimal(value)).canonicalScalar
 
+  trait HelperMethods {
+    def withMaxDenominator(maxd: BigInt): Units
+    def withNoRationals: Units
+    def withMathContext(mc: MathContext): Units
+    def withPrecision(precision: Int): Units
+    def withScale(scale: Int): Units
+  }
+
+  implicit def units2helpers(u: Units): HelperMethods = new HelperMethods {
+    def withMaxDenominator(maxd: BigInt): Units = u mapScalars Helpers.withMaxDenominator(maxd)
+    def withNoRationals: Units = u mapScalars Helpers.withNoRationals
+    def withMathContext(mc: MathContext): Units = u mapScalars Helpers.withMathContext(mc)
+    def withPrecision(precision: Int): Units = u mapScalars Helpers.withPrecision(precision)
+    def withScale(scale: Int): Units = u mapScalars Helpers.withScale(scale)
+  }
+
   def withMaxDenominator(maxd: BigInt)(x: Scalar): Scalar = x match {
     case RationalScalar(_, d) if d > maxd =>
       DecimalScalar(x.decimalValue).canonicalScalar
