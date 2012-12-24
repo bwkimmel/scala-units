@@ -155,6 +155,8 @@ trait Scalar extends Units {
   def -(that: Scalar): Scalar = this + (-that)
   def unary_- : Scalar
 
+  def isZero: Boolean
+
   def decimalValue: BigDecimal
 }
 
@@ -258,6 +260,8 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
 
   override def reciprocal = RationalScalar(d, n).canonicalScalar
   def label = "%s|%s".format(n, d)
+
+  def isZero = (n == 0)
   def decimalValue = BigDecimal(n) / BigDecimal(d)
 }
 
@@ -288,6 +292,8 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
 
   override def reciprocal = DecimalScalar(BigDecimal(1) / value)
   def label = value.toString
+
+  def isZero = (value == 0)
   def decimalValue = value
 }
 
@@ -314,6 +320,8 @@ case class IntegerScalar(value: BigInt) extends Scalar {
   }
 
   def label = value.toString
+
+  def isZero = (value == 0)
   def decimalValue = BigDecimal(value)
 }
 
@@ -326,6 +334,7 @@ case object OneUnits extends IntegerScalar(1) {
   override def pow(n: Int) = this
   override def reciprocal = this
   override def label = "1"
+  override def isZero = false
 }
 
 sealed abstract case class SymbolDef(name: String, units: Units)
