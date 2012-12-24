@@ -63,6 +63,24 @@ sealed trait Units extends Ordered[Units] {
     ratio.scale.decimalValue compare 1
   }
 
+  def +(that: Units): Units = {
+    val a = this.canonical
+    val b = that.canonical
+    if (a.dimensions != b.dimensions)
+      throw new IncompatibleUnitsException(this, that)
+
+    CanonicalUnits(a.scale + b.scale, a.dimensions) in this
+  }
+
+  def -(that: Units): Units = {
+    val a = this.canonical
+    val b = that.canonical
+    if (a.dimensions != b.dimensions)
+      throw new IncompatibleUnitsException(this, that)
+
+    CanonicalUnits(a.scale - b.scale, a.dimensions) in this
+  }
+
   def label: String
   def termLabel: String = label
   override def toString = label
