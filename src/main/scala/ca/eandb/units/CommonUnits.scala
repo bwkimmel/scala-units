@@ -187,6 +187,11 @@ class CommonUnits(units: UnitsParser) {
   lazy val gallon = gal
   lazy val gallons = gal
 
+  lazy val quart = units("quart")
+  lazy val quarts = units("quarts")
+  lazy val pint = units("pint")
+  lazy val pints = units("pints")
+
   lazy val mpg = miles per gallon
 
   lazy val Hz = units("Hz")
