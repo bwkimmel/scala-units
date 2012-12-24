@@ -130,6 +130,8 @@ trait Scalar extends Units {
   override def pow(n: Int): Scalar
   override def split = (this, OneUnits)
 
+  def truncate: (IntegerScalar, Scalar)
+
   def apply(that: Units) = this * that
 
   def *(that: Scalar): Scalar
@@ -226,6 +228,12 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
       RationalScalar(n / r, d / r)
   }
 
+  def truncate = (n /% d) match {
+    case (q, r) =>
+      (IntegerScalar(q).canonicalScalar,
+        RationalScalar(r, d).canonicalScalar)
+  }
+
   def +(that: Scalar) = that match {
     case OneUnits => RationalScalar(n + d, d).canonicalScalar
     case IntegerScalar(n2) => RationalScalar(n + n2 * d, d).canonicalScalar
@@ -259,6 +267,12 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
     case None => this
   }
 
+  def truncate = (value /% 1) match {
+    case (n, r) =>
+      (IntegerScalar(n.toBigInt).canonicalScalar,
+        DecimalScalar(r).canonicalScalar)
+  }
+
   def +(that: Scalar) =
     DecimalScalar(value + that.decimalValue).canonicalScalar
 
@@ -278,8 +292,10 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
 }
 
 case class IntegerScalar(value: BigInt) extends Scalar {
-  def canonicalScalar = if (value == 1) OneUnits else this
+  def canonicalScalar: IntegerScalar = if (value == 1) OneUnits else this
   override def reciprocal = RationalScalar(1, value).canonicalScalar
+
+  def truncate = (this, IntegerScalar(0))
 
   def +(that: Scalar) = RationalScalar(value, 1) + that
   def unary_- = IntegerScalar(-value).canonicalScalar
@@ -303,6 +319,7 @@ case class IntegerScalar(value: BigInt) extends Scalar {
 
 case object OneUnits extends IntegerScalar(1) {
   override def canonicalScalar = this
+  override def truncate = (this, IntegerScalar(0))
   override def unary_- = IntegerScalar(-1)
   override def *(that: Scalar) = that
   override def /(that: Scalar) = that.reciprocal
