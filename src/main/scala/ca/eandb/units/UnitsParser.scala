@@ -28,6 +28,8 @@ package ca.eandb.units
 import scala.util.parsing.combinator.JavaTokenParsers
 import scala.io.Source
 
+import java.math.MathContext
+
 sealed trait Units extends Ordered[Units] {
   def canonical: CanonicalUnits
   def isScalar: Boolean = false
@@ -644,5 +646,31 @@ object Helpers {
   implicit def int2units(value: Int) = IntegerScalar(BigInt(value)).canonicalScalar
   implicit def long2units(value: Long) = IntegerScalar(BigInt(value)).canonicalScalar
   implicit def double2units(value: Double) = DecimalScalar(BigDecimal(value)).canonicalScalar
+
+  def withMaxDenominator(maxd: BigInt)(x: Scalar): Scalar = x match {
+    case RationalScalar(_, d) if d > maxd =>
+      DecimalScalar(x.decimalValue).canonicalScalar
+    case _ => x
+  }
+
+  def withNoRationals(x: Scalar): Scalar = x match {
+    case _: RationalScalar => DecimalScalar(x.decimalValue).canonicalScalar
+    case _ => x
+  }
+
+  def withMathContext(mc: MathContext)(x: Scalar): Scalar = x match {
+    case DecimalScalar(value) => DecimalScalar(value(mc)).canonicalScalar
+    case _ => x
+  }
+
+  def withPrecision(precision: Int): Scalar => Scalar =
+    withMathContext(new MathContext(precision))
+
+  def withScale(scale: Int)(x: Scalar): Scalar = x match {
+    case DecimalScalar(value) =>
+      val mode = BigDecimal.RoundingMode.HALF_UP
+      DecimalScalar(value setScale (scale, mode)).canonicalScalar
+    case _ => x
+  }
 }
 
