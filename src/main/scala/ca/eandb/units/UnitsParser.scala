@@ -61,8 +61,7 @@ sealed trait Units extends Ordered[Units] {
     case Seq(that, rest @ _*) =>
       val (scale, u) = (this convertTo that).split
       scale.truncate match {
-        case (intPart, fracPart) if intPart.isZero =>
-          (fracPart * u in rest)
+        case (intPart, fracPart) if intPart.isZero => this in rest
         case (intPart, fracPart) =>
           (intPart * u) +: (fracPart * u in rest)
       }
