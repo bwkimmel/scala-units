@@ -214,18 +214,6 @@ case class PrimitiveUnits(symbol: String) extends NonScalarUnits {
   def label = symbol
 }
 
-case object OneUnits extends Scalar {
-  def canonicalScalar = this
-  def +(that: Scalar) = IntegerScalar(1) + that
-  def unary_- = IntegerScalar(-1)
-  override def *(that: Scalar) = that
-  override def /(that: Scalar) = that.reciprocal
-  override def pow(n: Int) = this
-  override def reciprocal = this
-  def label = "1"
-  def decimalValue = BigDecimal(1)
-}
-
 case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   def canonicalScalar = if (n == d) OneUnits else {
     val r = n gcd d
@@ -239,19 +227,19 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   }
 
   def +(that: Scalar) = that match {
-    case RationalScalar(n2, d2) => RationalScalar(n * d2 + n2 * d, d * d2).canonicalScalar
-    case IntegerScalar(n2) => RationalScalar(n + n2 * d, d).canonicalScalar
-    case DecimalScalar(x) => DecimalScalar(x + decimalValue).canonicalScalar
     case OneUnits => RationalScalar(n + d, d).canonicalScalar
+    case IntegerScalar(n2) => RationalScalar(n + n2 * d, d).canonicalScalar
+    case RationalScalar(n2, d2) => RationalScalar(n * d2 + n2 * d, d * d2).canonicalScalar
+    case DecimalScalar(x) => DecimalScalar(x + decimalValue).canonicalScalar
   }
 
   def unary_- = RationalScalar(-n, d)
 
   override def *(that: Scalar) = that match {
-    case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonicalScalar
-    case IntegerScalar(n2) => RationalScalar(n * n2, d).canonicalScalar
-    case DecimalScalar(x) => DecimalScalar(x * decimalValue).canonicalScalar
     case OneUnits => this
+    case IntegerScalar(n2) => RationalScalar(n * n2, d).canonicalScalar
+    case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonicalScalar
+    case DecimalScalar(x) => DecimalScalar(x * decimalValue).canonicalScalar
   }
 
   override def pow(e: Int): Scalar = e match {
@@ -297,10 +285,10 @@ case class IntegerScalar(value: BigInt) extends Scalar {
   def unary_- = IntegerScalar(-value).canonicalScalar
 
   override def *(that: Scalar) = that match {
-    case RationalScalar(n, d) => RationalScalar(value * n, d).canonicalScalar
-    case IntegerScalar(n) => IntegerScalar(value * n).canonicalScalar
-    case DecimalScalar(x) => DecimalScalar(decimalValue * x).canonicalScalar
     case OneUnits => this
+    case IntegerScalar(n) => IntegerScalar(value * n).canonicalScalar
+    case RationalScalar(n, d) => RationalScalar(value * n, d).canonicalScalar
+    case DecimalScalar(x) => DecimalScalar(decimalValue * x).canonicalScalar
   }
 
   override def pow(e: Int): Scalar = e match {
@@ -311,6 +299,16 @@ case class IntegerScalar(value: BigInt) extends Scalar {
 
   def label = value.toString
   def decimalValue = BigDecimal(value)
+}
+
+case object OneUnits extends IntegerScalar(1) {
+  override def canonicalScalar = this
+  override def unary_- = IntegerScalar(-1)
+  override def *(that: Scalar) = that
+  override def /(that: Scalar) = that.reciprocal
+  override def pow(n: Int) = this
+  override def reciprocal = this
+  override def label = "1"
 }
 
 sealed abstract case class SymbolDef(name: String, units: Units)
