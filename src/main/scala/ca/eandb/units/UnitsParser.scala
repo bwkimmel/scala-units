@@ -41,7 +41,10 @@ sealed trait Units extends Ordered[Units] {
     val ratio = QuotientUnits(this, that).canonical
     if (!ratio.isScalar)
       throw new IncompatibleUnitsException(this, that)
-    ratio.scale * that
+    that match {
+      case ProductUnits(terms) => ProductUnits(ratio.scale :: terms)
+      case u => ProductUnits(List(ratio.scale, that))
+    }
   }
 
   def in(that: Units): Units = this convertTo that
