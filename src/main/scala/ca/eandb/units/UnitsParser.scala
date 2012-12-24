@@ -72,22 +72,22 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   override def canonical = if (n == d) OneUnits else {
     val r = n gcd d
 
-    if (r == 1)
+    if (r == d)
+      IntegerScalar(n / d).canonical
+    else if (r == 1)
       this
-    else if (r == d)
-      IntegerScalar(n / d)
     else
       RationalScalar(n / r, d / r)
   }
 
   override def *(that: Units) = that match {
-    case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2)
-    case IntegerScalar(n2) => RationalScalar(n * n2, d)
-    case DecimalScalar(x) => DecimalScalar(x * (BigDecimal(n) / BigDecimal(d)))
+    case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonical
+    case IntegerScalar(n2) => RationalScalar(n * n2, d).canonical
+    case DecimalScalar(x) => DecimalScalar(x * (BigDecimal(n) / BigDecimal(d))).canonical
     case _ => super.*(that)
   }
 
-  override def reciprocal = RationalScalar(d, n)
+  override def reciprocal = RationalScalar(d, n).canonical
   def label = "%s|%s".format(n, d)
 }
 
@@ -98,9 +98,9 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
   }
 
   override def *(that: Units) = that match {
-    case RationalScalar(n, d) => DecimalScalar(value * (BigDecimal(n) / BigDecimal(d)))
-    case IntegerScalar(n) => DecimalScalar(value * BigDecimal(n))
-    case DecimalScalar(x) => DecimalScalar(value * x)
+    case RationalScalar(n, d) => DecimalScalar(value * (BigDecimal(n) / BigDecimal(d))).canonical
+    case IntegerScalar(n) => DecimalScalar(value * BigDecimal(n)).canonical
+    case DecimalScalar(x) => DecimalScalar(value * x).canonical
     case _ => super.*(that)
   }
 
@@ -110,12 +110,12 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
 
 case class IntegerScalar(value: BigInt) extends Scalar {
   override def canonical = if (value == 1) OneUnits else this
-  override def reciprocal = RationalScalar(1, value)
+  override def reciprocal = RationalScalar(1, value).canonical
 
   override def *(that: Units) = that match {
-    case RationalScalar(n, d) => RationalScalar(value * n, d)
-    case IntegerScalar(n) => IntegerScalar(value * n)
-    case DecimalScalar(x) => DecimalScalar(BigDecimal(value) * x)
+    case RationalScalar(n, d) => RationalScalar(value * n, d).canonical
+    case IntegerScalar(n) => IntegerScalar(value * n).canonical
+    case DecimalScalar(x) => DecimalScalar(BigDecimal(value) * x).canonical
     case _ => super.*(that)
   }
   def label = value.toString
