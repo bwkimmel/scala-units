@@ -30,23 +30,19 @@ import scala.io.Source
 
 
 sealed trait Units {
-  def canonical: Units = this
+  def canonical: CanonicalUnits
   def isScalar: Boolean = false
-  def dimensions = canonical match {
-    case _: Scalar => OneUnits
-    case ProductUnits(terms) =>
-      ProductUnits(terms.filterNot(_.isScalar)).canonical
-    case u => u
-  }
+
+  def dimensions: Map[PrimitiveUnits, Int] = canonical.dimensions
 
   def canConvertTo(that: Units): Boolean =
     this.dimensions == that.dimensions
 
   def convertTo(that: Units): Units = {
     val ratio = QuotientUnits(this, that).canonical
-    if (!ratio.dimensions.isScalar)
+    if (!ratio.isScalar)
       throw new IncompatibleUnitsException(this, that)
-    ratio * that
+    ratio.scale * that
   }
 
   def in(that: Units): Units = this convertTo that
@@ -57,13 +53,82 @@ sealed trait Units {
   }
 
   def /(that: Units): Units = this * reciprocal
-  def reciprocal: Units = ReciprocalUnits(this)
+  def reciprocal: Units
 
-  def pow(n: Int): Units = PowerUnits(this, n)
+  def pow(n: Int): Units
 
   def label: String
   def termLabel: String = label
   override def toString = label
+}
+
+abstract class NonScalarUnits extends Units {
+  def reciprocal: Units = ReciprocalUnits(this)
+  def pow(n: Int): Units = PowerUnits(this, n)
+}
+
+trait Scalar extends Units {
+  override def isScalar: Boolean = true
+  def canonicalScalar: Scalar
+  def canonical = CanonicalUnits(canonicalScalar)
+
+  override def reciprocal: Scalar
+  override def pow(n: Int): Scalar
+
+  def *(that: Scalar): Scalar
+  def /(that: Scalar): Scalar = this * that.reciprocal.asInstanceOf[Scalar]
+
+  override def *(that: Units): Units = that match {
+    case s: Scalar => this * s
+    case ProductUnits((s: Scalar) :: rest) =>
+      ProductUnits((this * s) :: rest)
+    case _ => super.*(that)
+  }
+
+  override def /(that: Units): Units = that match {
+    case s: Scalar => this / s
+    case _ => super./(that)
+  }
+
+  def decimalValue: BigDecimal
+}
+
+case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveUnits, Int] = Map.empty)
+    extends NonScalarUnits {
+  require(dimensions.values.forall(_ != 0))
+
+  def canonical = this
+  override def isScalar = dimensions.isEmpty
+
+  def expand: Units = {
+    val dims = dimensions.toList map {
+      case (b, 1) => b
+      case (b, e) => PowerUnits(b, e)
+    }
+    val terms = scale :: dims
+
+    terms.reduce(_ * _)
+  }
+
+  def *(that: CanonicalUnits): CanonicalUnits = {
+    val s = scale * that.scale
+    val dims =
+      dimensions.keySet union that.dimensions.keySet flatMap { key =>
+        val exp = dimensions.getOrElse(key, 0) + that.dimensions.getOrElse(key, 0)
+        if (exp != 0) Some(key -> exp) else None
+      } toMap
+
+    CanonicalUnits(s, dims)
+  }
+
+  override def *(that: Units): Units = that match {
+    case u : CanonicalUnits => this * u
+    case u => super.*(u)
+  }
+
+  override def reciprocal = CanonicalUnits(scale.reciprocal.asInstanceOf[Scalar], dimensions.mapValues(-_))
+
+  def label = expand.label
 }
 
 class IncompatibleUnitsException(from: Units, to: Units)
@@ -78,77 +143,94 @@ class UnitsDefParsingException(defs: String)
 class UndefinedUnitsException(symbol: String)
   extends IllegalArgumentException("Cannot resolve symbol: %s".format(symbol))
 
-case class PrimitiveUnits(symbol: String) extends Units {
+case class PrimitiveUnits(symbol: String) extends NonScalarUnits {
+  def canonical = CanonicalUnits(OneUnits, Map() + (this -> 1))
   def label = symbol
 }
 
-trait Scalar extends Units {
-  override def isScalar: Boolean = true
-}
-
 case object OneUnits extends Scalar {
-  override def *(that: Units) = that
-  override def /(that: Units) = that reciprocal
+  def canonicalScalar = this
+  override def *(that: Scalar) = that
+  override def /(that: Scalar) = that.reciprocal.asInstanceOf[Scalar]
+  override def pow(n: Int) = this
   override def reciprocal = this
   def label = "1"
+  def decimalValue = BigDecimal(1)
 }
 
 case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
-  override def canonical = if (n == d) OneUnits else {
+  def canonicalScalar = if (n == d) OneUnits else {
     val r = n gcd d
 
     if (r == d)
-      IntegerScalar(n / d).canonical
+      IntegerScalar(n / d)
     else if (r == 1)
       this
     else
       RationalScalar(n / r, d / r)
   }
 
-  override def *(that: Units) = that match {
-    case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonical
-    case IntegerScalar(n2) => RationalScalar(n * n2, d).canonical
-    case DecimalScalar(x) => DecimalScalar(x * (BigDecimal(n) / BigDecimal(d))).canonical
-    case _ => super.*(that)
+  override def *(that: Scalar) = that match {
+    case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonicalScalar
+    case IntegerScalar(n2) => RationalScalar(n * n2, d).canonicalScalar
+    case DecimalScalar(x) => DecimalScalar(x * decimalValue).canonicalScalar
+    case OneUnits => this
   }
 
-  override def reciprocal = RationalScalar(d, n).canonical
+  override def pow(e: Int): Scalar = e match {
+    case 0 => OneUnits
+    case e if e > 0 => RationalScalar(n pow e, d pow e).canonicalScalar
+    case e if e < 0 => RationalScalar(d pow -e, n pow -e).canonicalScalar
+  }
+
+  override def reciprocal = RationalScalar(d, n).canonicalScalar
   def label = "%s|%s".format(n, d)
+  def decimalValue = BigDecimal(n) / BigDecimal(d)
 }
 
 case class DecimalScalar(value: BigDecimal) extends Scalar {
-  override def canonical = value.toBigIntExact match {
-    case Some(n) => IntegerScalar(n).canonical
+  def canonicalScalar = value.toBigIntExact match {
+    case Some(n) => IntegerScalar(n).canonicalScalar
     case None => this
   }
 
-  override def *(that: Units) = that match {
-    case RationalScalar(n, d) => DecimalScalar(value * (BigDecimal(n) / BigDecimal(d))).canonical
-    case IntegerScalar(n) => DecimalScalar(value * BigDecimal(n)).canonical
-    case DecimalScalar(x) => DecimalScalar(value * x).canonical
-    case _ => super.*(that)
+  override def *(that: Scalar) = that match {
+    case OneUnits => this
+    case _ => DecimalScalar(value * that.decimalValue).canonicalScalar
   }
+
+  override def pow(e: Int): Scalar =
+    DecimalScalar(value pow e).canonicalScalar
 
   override def reciprocal = DecimalScalar(BigDecimal(1) / value)
   def label = value.toString
+  def decimalValue = value
 }
 
 case class IntegerScalar(value: BigInt) extends Scalar {
-  override def canonical = if (value == 1) OneUnits else this
-  override def reciprocal = RationalScalar(1, value).canonical
+  def canonicalScalar = if (value == 1) OneUnits else this
+  override def reciprocal = RationalScalar(1, value).canonicalScalar
 
-  override def *(that: Units) = that match {
-    case RationalScalar(n, d) => RationalScalar(value * n, d).canonical
-    case IntegerScalar(n) => IntegerScalar(value * n).canonical
-    case DecimalScalar(x) => DecimalScalar(BigDecimal(value) * x).canonical
-    case _ => super.*(that)
+  override def *(that: Scalar) = that match {
+    case RationalScalar(n, d) => RationalScalar(value * n, d).canonicalScalar
+    case IntegerScalar(n) => IntegerScalar(value * n).canonicalScalar
+    case DecimalScalar(x) => DecimalScalar(decimalValue * x).canonicalScalar
+    case OneUnits => this
   }
+
+  override def pow(e: Int): Scalar = e match {
+    case 0 => OneUnits
+    case e if e > 0 => IntegerScalar(value pow e).canonicalScalar
+    case e if e < 0 => RationalScalar(1, value pow -e).canonicalScalar
+  }
+
   def label = value.toString
+  def decimalValue = BigDecimal(value)
 }
 
-case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends Units {
+case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends NonScalarUnits {
   def label = symbol
-  override def canonical = resolve canonical
+  def canonical = resolve canonical
 
   private def resolve: Units = {
 
@@ -189,45 +271,40 @@ sealed abstract case class SymbolDef(name: String, units: Units)
 case class UnitDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
 case class PrefixDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
 
-case class QuotientUnits(n: Units, d: Units) extends Units {
+case class QuotientUnits(n: Units, d: Units) extends NonScalarUnits {
   def label = "%s / %s".format(n.termLabel, d.termLabel)
   override def termLabel = "(%s)".format(label)
-  override def canonical =
+  def canonical =
     ProductUnits(List(n, PowerUnits(d, -1))).canonical
 }
 
-case class ReciprocalUnits(u: Units) extends Units {
+case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   def label = "/ %s".format(u.termLabel)
   override def termLabel = "(%s)".format(label)
-  override def canonical =
+  def canonical =
     PowerUnits(u, -1).canonical
 }
 
-case class PowerUnits(base: Units, exp: Int) extends Units {
+case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
   def label = base match {
     case b : PowerUnits => "(%s)^%d".format(base.label, exp)
     case _ => "%s^%d".format(base.termLabel, exp)
   }
 
-  override def canonical = (base.canonical, exp) match {
-    case (b, 0) => OneUnits
+  def canonical = (base.canonical, exp) match {
+    case (_, 0) => OneUnits.canonical
     case (b, 1) => b
-    case (ProductUnits(terms), e) => ProductUnits(terms.map(PowerUnits(_, e))).canonical
-    case (PowerUnits(b, e1), e2) => PowerUnits(b, e1 * e2).canonical
-    case (DecimalScalar(x), e) => DecimalScalar(x pow e).canonical
-    case (RationalScalar(n, d), e) if e > 0 => RationalScalar(n pow e, d pow e).canonical
-    case (RationalScalar(n, d), e) if e < 0 => RationalScalar(d pow -e, n pow -e).canonical
-    case (IntegerScalar(x), e) if e > 0 => IntegerScalar(x pow e).canonical
-    case (IntegerScalar(x), e) if e < 0 => RationalScalar(1, x pow -e).canonical
-    case (b, e) => PowerUnits(b, e)
+    case (CanonicalUnits(scale, dims), e) =>
+      CanonicalUnits((scale pow e).asInstanceOf[Scalar], dims.mapValues(_ * e))
   }
+
   override def pow(n: Int): Units = base match {
     case PowerUnits(b, e) => PowerUnits(b, e * n)
     case _ => super.pow(n)
   }
 }
 
-case class ProductUnits(terms: List[Units]) extends Units {
+case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
   def label = {
     val result = new StringBuilder
     def build(ts: List[Units]): Unit = ts match {
@@ -249,52 +326,7 @@ case class ProductUnits(terms: List[Units]) extends Units {
 
   override def termLabel = "(%s)".format(label)
 
-  private def flatten(terms: List[Units]): List[Units] = terms.map(_.canonical) flatMap {
-    case ProductUnits(ts) => flatten(ts)
-    case OneUnits => Nil
-    case term => term :: Nil
-  }
-
-  private def key(terms: Units) = terms match {
-    case PowerUnits(PrimitiveUnits(symbol), _) => Some(symbol)
-    case PrimitiveUnits(symbol) => Some(symbol)
-    case _ => None
-  }
-
-  override def canonical = flatten(terms) match {
-    case Nil => OneUnits
-    case term :: Nil => term
-    case terms =>
-      val seed: Units = OneUnits
-      val scalar = terms.collect { case x: Scalar => x }.foldLeft(seed) {
-        case (a, b) => a * b
-      }.canonical
-
-      val dims = terms.groupBy(key).toList.sortBy(_._1) flatMap {
-        case (Some(symbol), ts) =>
-          val u = PrimitiveUnits(symbol)
-          ts.map {
-            case PowerUnits(_, e) => e
-            case _ => 1
-          }.sum match {
-            case 0 => None
-            case 1 => Some(u)
-            case e => Some(PowerUnits(u, e))
-          }
-        case _ => None
-      }
-      
-      val all = scalar match {
-        case OneUnits => dims
-        case s => s :: dims
-      }
-      
-      flatten(all) match {
-        case Nil => OneUnits
-        case term :: Nil => term
-        case terms => ProductUnits(terms)
-      }
-  }
+  def canonical = terms.map(_.canonical).reduce(_ * _)
 
   override def *(that: Units): Units = that match {
     case ProductUnits(rterms) => ProductUnits(terms ::: rterms)
