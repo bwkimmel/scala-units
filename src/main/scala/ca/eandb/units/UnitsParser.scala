@@ -48,6 +48,7 @@ sealed trait Units extends Ordered[Units] {
   }
 
   def in(that: Units): Units = this convertTo that
+  def is(that: Units): Boolean = this canConvertTo that
 
   def *(that: Units): Units = that match {
     case ProductUnits(terms) => ProductUnits(this :: terms)
