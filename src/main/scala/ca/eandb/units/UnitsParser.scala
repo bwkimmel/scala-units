@@ -85,6 +85,8 @@ sealed trait Units extends Ordered[Units] {
     CanonicalUnits(a.scale - b.scale, a.dimensions) in this
   }
 
+  def root: Units = this
+
   def label: String
   def termLabel: String = label
   override def toString = label
@@ -330,6 +332,14 @@ case class QuotientUnits(n: Units, d: Units) extends NonScalarUnits {
   override def termLabel = "(%s)".format(label)
   def canonical =
     ProductUnits(List(n, PowerUnits(d, -1))).canonical
+
+  override def root =
+    if (n isScalar)
+      ReciprocalUnits(d).root
+    else if (d isScalar)
+      n root
+    else
+      QuotientUnits(n root, d root)
 }
 
 case class ReciprocalUnits(u: Units) extends NonScalarUnits {
@@ -337,6 +347,7 @@ case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   override def termLabel = "(%s)".format(label)
   def canonical =
     PowerUnits(u, -1).canonical
+  override def root = if (u isScalar) OneUnits else ReciprocalUnits(u root)
 }
 
 case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
@@ -381,6 +392,12 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
   override def termLabel = "(%s)".format(label)
 
   def canonical = terms.map(_.canonical).reduce(_ * _)
+
+  override def root = terms.map(_.root).filterNot(_.isScalar) match {
+    case Nil => OneUnits
+    case t :: Nil => t
+    case ts => ProductUnits(ts)
+  }
 
   override def *(that: Units): Units = that match {
     case ProductUnits(rterms) => ProductUnits(terms ::: rterms)
