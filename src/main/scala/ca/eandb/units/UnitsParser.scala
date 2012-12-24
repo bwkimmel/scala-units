@@ -137,6 +137,7 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
 
   def canonical = this
   override def isScalar = dimensions.isEmpty
+  override def root = CanonicalUnits(OneUnits, dimensions)
 
   def expand: Units = {
     val dims = dimensions.toList map {
