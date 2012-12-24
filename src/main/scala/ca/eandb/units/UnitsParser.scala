@@ -44,6 +44,8 @@ sealed trait Units extends Ordered[Units] {
     that match {
       case CanonicalUnits(scale, dimensions) =>
         CanonicalUnits(scale * ratio.scale, dimensions)
+      case ProductUnits(OneUnits :: rest) => ProductUnits(ratio.scale :: rest)
+      case QuotientUnits(OneUnits, d) => QuotientUnits(ratio.scale, d)
       case ProductUnits(terms) => ProductUnits(ratio.scale :: terms)
       case u => ProductUnits(List(ratio.scale, that))
     }
