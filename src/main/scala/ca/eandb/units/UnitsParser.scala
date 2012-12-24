@@ -358,7 +358,7 @@ class UnitsParser extends JavaTokenParsers {
     product ~ "/" ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) }
 
   lazy val reciprocal: Parser[Units] =
-    "/" ~> product ^^ { case u => ReciprocalUnits(u) }
+    ("/" | "per") ~> product ^^ { case u => ReciprocalUnits(u) }
 
   lazy val term: Parser[Units] =
     dimensionless | primitive | power | base
