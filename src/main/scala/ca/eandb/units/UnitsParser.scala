@@ -53,20 +53,21 @@ sealed trait Units extends Ordered[Units] {
   def in(that: Units): Units = this convertTo that
   def is(that: Units): Boolean = this canConvertTo that
 
-  def in(units: Seq[Units]): Seq[Units] = units match {
+  def inAllOf(units: Seq[Units]): Seq[Units] = units match {
     case Seq() => Nil
-    case Seq(that) =>
-      val (scale, u) = (this convertTo that).split
-      if (scale isZero) Nil else Seq(scale * u)
+    case Seq(that) => Seq(this convertTo that)
     case Seq(that, rest @ _*) =>
       val (scale, u) = (this convertTo that).split
       scale.truncate match {
-        case (intPart, fracPart) if intPart.isZero => this in rest
         case (intPart, fracPart) =>
-          (intPart * u) +: (fracPart * u in rest)
+          val remainder = if (intPart isZero) this else (fracPart * u)
+          (intPart * u) +: (remainder inAllOf rest)
       }
   }
 
+  def inAllOf(first: Units, rest: Units*): Seq[Units] = inAllOf(first +: rest)
+
+  def in(units: Seq[Units]): Seq[Units] = inAllOf(units) filterNot (_.isZero)
   def in(first: Units, rest: Units*): Seq[Units] = in(first +: rest)
 
   def inOneOf(units: Units*): Units = {
@@ -124,6 +125,7 @@ sealed trait Units extends Ordered[Units] {
   }
 
   def split: (Scalar, Units) = (OneUnits, this)
+  def isZero: Boolean = split._1.isZero
 
   def root: Units = this
 
@@ -171,7 +173,7 @@ trait Scalar extends Units {
   def -(that: Scalar): Scalar = this + (-that)
   def unary_- : Scalar
 
-  def isZero: Boolean
+  override def isZero: Boolean
 
   def decimalValue: BigDecimal
 }
@@ -277,7 +279,7 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   override def reciprocal = RationalScalar(d, n).canonicalScalar
   def label = "%s|%s".format(n, d)
 
-  def isZero = (n == 0)
+  override def isZero = (n == 0)
   def decimalValue = BigDecimal(n) / BigDecimal(d)
 }
 
@@ -309,7 +311,7 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
   override def reciprocal = DecimalScalar(BigDecimal(1) / value)
   def label = value.toString
 
-  def isZero = (value == 0)
+  override def isZero = (value == 0)
   def decimalValue = value
 }
 
@@ -337,7 +339,7 @@ case class IntegerScalar(value: BigInt) extends Scalar {
 
   def label = value.toString
 
-  def isZero = (value == 0)
+  override def isZero = (value == 0)
   def decimalValue = BigDecimal(value)
 }
 
