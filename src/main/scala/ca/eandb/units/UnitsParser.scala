@@ -107,6 +107,8 @@ sealed trait Units extends Ordered[Units] {
     CanonicalUnits(a.scale - b.scale, a.dimensions) in this.root
   }
 
+  def split: (Scalar, Units) = (OneUnits, this)
+
   def root: Units = this
 
   def label: String
@@ -126,6 +128,7 @@ trait Scalar extends Units {
 
   override def reciprocal: Scalar
   override def pow(n: Int): Scalar
+  override def split = (this, OneUnits)
 
   def apply(that: Units) = this * that
 
@@ -160,6 +163,7 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
   def canonical = this
   override def isScalar = dimensions.isEmpty
   override def root = CanonicalUnits(OneUnits, dimensions)
+  override def split = (scale, root)
 
   def expand: Units = {
     val dims = dimensions.toList map {
@@ -320,6 +324,9 @@ case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   def canonical =
     PowerUnits(u, -1).canonical
   override def root = if (u isScalar) OneUnits else ReciprocalUnits(u root)
+  override def split = u.split match {
+    case (scale, d) => (scale.reciprocal, d.reciprocal)
+  }
   override def reciprocal = u
 }
 
@@ -375,6 +382,13 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
     case Nil => OneUnits
     case t :: Nil => t
     case ts => ProductUnits(ts)
+  }
+
+  override def split = {
+    val parts = terms.map(_.split)
+    val scale = parts.map(_._1).reduce(_ * _)
+
+    (scale, ProductUnits(parts.map(_._2)).root)
   }
 
   override def *(that: Units): Units = that match {
