@@ -124,6 +124,8 @@ sealed trait Units extends Ordered[Units] {
     CanonicalUnits(a.scale - b.scale, a.dimensions) in this.root
   }
 
+  def mapScalars(f: Scalar => Scalar): Units = this
+
   def split: (Scalar, Units) = (OneUnits, this)
   def isZero: Boolean = split._1.isZero
 
@@ -149,6 +151,8 @@ trait Scalar extends Units {
   override def split = (this, OneUnits)
 
   def truncate: (IntegerScalar, Scalar)
+
+  override def mapScalars(f: Scalar => Scalar) = f(this)
 
   def apply(that: Units) = this * that
 
@@ -186,6 +190,8 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
   override def isScalar = dimensions.isEmpty
   override def root = CanonicalUnits(OneUnits, dimensions)
   override def split = (scale, root)
+
+  override def mapScalars(f: Scalar => Scalar) = CanonicalUnits(f(scale), dimensions)
 
   def expand: Units = {
     val dims = dimensions.toList map {
@@ -370,6 +376,7 @@ case class ReciprocalUnits(u: Units) extends NonScalarUnits {
     case (scale, d) => (scale.reciprocal, d.reciprocal)
   }
   override def reciprocal = u
+  override def mapScalars(f: Scalar => Scalar) = ReciprocalUnits(u mapScalars f)
 }
 
 case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
@@ -389,6 +396,8 @@ case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
     case PowerUnits(b, e) => PowerUnits(b, e * n)
     case _ => super.pow(n)
   }
+
+  override def mapScalars(f: Scalar => Scalar) = PowerUnits(base mapScalars f, exp)
 }
 
 case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
@@ -432,6 +441,9 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
 
     (scale, ProductUnits(parts.map(_._2)).root)
   }
+
+  override def mapScalars(f: Scalar => Scalar) =
+    ProductUnits(terms map (_ mapScalars f))
 
   override def *(that: Units): Units = that match {
     case ProductUnits(rterms) => ProductUnits(terms ::: rterms)
