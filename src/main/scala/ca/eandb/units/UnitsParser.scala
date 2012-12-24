@@ -126,7 +126,7 @@ trait Scalar extends Units {
 
 case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveUnits, Int] = Map.empty)
     extends NonScalarUnits {
-  require(dimensions.values.forall(_ != 0))
+  require(dimensions.values.forall(_ != 0), "All exponents must be non-zero")
 
   def canonical = this
   override def isScalar = dimensions.isEmpty
