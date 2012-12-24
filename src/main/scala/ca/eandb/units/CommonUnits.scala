@@ -248,4 +248,10 @@ class CommonUnits(units: UnitsParser) {
     light * t
   }
 
+  lazy val hms = Seq(h, min, s)
+  lazy val duration = Seq(year, day, h, min, s)
+  lazy val dms = Seq(deg, arcmin, arcsec)
+  lazy val ftin = Seq(ft, in)
+  lazy val lboz = Seq(lbs, oz)
+
 }
