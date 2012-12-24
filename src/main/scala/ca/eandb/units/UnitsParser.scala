@@ -108,7 +108,7 @@ trait Scalar extends Units {
   override def pow(n: Int): Scalar
 
   def *(that: Scalar): Scalar
-  def /(that: Scalar): Scalar = this * that.reciprocal.asInstanceOf[Scalar]
+  def /(that: Scalar): Scalar = this * that.reciprocal
 
   override def *(that: Units): Units = that match {
     case s: Scalar => this * s
@@ -165,7 +165,7 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
     case u => super.*(u)
   }
 
-  override def reciprocal = CanonicalUnits(scale.reciprocal.asInstanceOf[Scalar], dimensions.mapValues(-_))
+  override def reciprocal = CanonicalUnits(scale.reciprocal, dimensions.mapValues(-_))
 
   def label = expand.label
 }
@@ -192,7 +192,7 @@ case object OneUnits extends Scalar {
   def +(that: Scalar) = IntegerScalar(1) + that
   def unary_- = IntegerScalar(-1)
   override def *(that: Scalar) = that
-  override def /(that: Scalar) = that.reciprocal.asInstanceOf[Scalar]
+  override def /(that: Scalar) = that.reciprocal
   override def pow(n: Int) = this
   override def reciprocal = this
   def label = "1"
@@ -324,7 +324,7 @@ case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
     case (_, 0) => OneUnits.canonical
     case (b, 1) => b
     case (CanonicalUnits(scale, dims), e) =>
-      CanonicalUnits((scale pow e).asInstanceOf[Scalar], dims.mapValues(_ * e))
+      CanonicalUnits(scale pow e, dims.mapValues(_ * e))
   }
 
   override def pow(n: Int): Units = base match {
