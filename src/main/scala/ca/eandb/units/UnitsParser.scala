@@ -73,19 +73,13 @@ sealed trait Units extends Ordered[Units] {
   def in(first: Units, rest: Units*): Seq[Units] = in(first +: rest)
 
   def inOneOf(units: Units*): Units = {
-    def scale(u: Units): Scalar = u match {
-      case CanonicalUnits(scale, _) => scale
-      case ProductUnits((scale: Scalar) :: _) => scale
-      case _ => OneUnits
+    def scale(u: Units) = u.split._1
+    def scan(units: Seq[Units]): Units = units match {
+      case Seq(u) => u
+      case Seq(u, _*) if scale(u) >= OneUnits => u
+      case Seq(_, rest @ _*) => scan(rest)
     }
-
-    def scan(units: Stream[Units]): Units = units match {
-      case u #:: Stream.Empty => u
-      case u #:: _ if scale(u) >= OneUnits => u
-      case _ #:: rest => scan(rest)
-    }
-
-    scan(units.toStream.map(this in _))
+    scan(units.view.map(this in _))
   }
 
   def *(that: Units): Units = that match {
