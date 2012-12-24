@@ -513,6 +513,8 @@ class UnitsParser extends JavaTokenParsers {
     case _ => throw new UnitsParsingException(s)
   }
 
+  def apply(s: String): Units = parse(s)
+
   def load(source: Source) {
     val seed: Map[String, SymbolDef] = Map.empty
     _defs ++= lines(source).map(parseAll(definition, _)).foldLeft(seed) {
