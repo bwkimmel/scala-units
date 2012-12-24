@@ -660,6 +660,7 @@ object Helpers {
 
   def withMathContext(mc: MathContext)(x: Scalar): Scalar = x match {
     case DecimalScalar(value) => DecimalScalar(value(mc)).canonicalScalar
+    case IntegerScalar(value) => DecimalScalar(BigDecimal(value)(mc)).canonicalScalar
     case _ => x
   }
 
@@ -670,6 +671,9 @@ object Helpers {
     case DecimalScalar(value) =>
       val mode = BigDecimal.RoundingMode.HALF_UP
       DecimalScalar(value setScale (scale, mode)).canonicalScalar
+    case IntegerScalar(value) if scale < 0 =>
+      val mode = BigDecimal.RoundingMode.HALF_UP
+      IntegerScalar(BigDecimal(value) setScale (scale, mode) toBigInt).canonicalScalar
     case _ => x
   }
 }
