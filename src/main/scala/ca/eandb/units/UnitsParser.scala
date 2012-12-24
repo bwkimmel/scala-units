@@ -48,6 +48,7 @@ sealed trait Units extends Ordered[Units] {
 
   def *(that: Units): Units = that match {
     case ProductUnits(terms) => ProductUnits(this :: terms)
+    case s: Scalar => s * this
     case _ => ProductUnits(List(this, that))
   }
 
