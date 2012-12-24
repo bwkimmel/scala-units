@@ -235,4 +235,10 @@ class CommonUnits(units: UnitsParser) {
   lazy val dollar = units("dollar")
   lazy val dollars = units("dollars")
 
+  private lazy val light = units("light")
+  def light(t: Units): Units = {
+    require(t is time, "Required time but got %s".format(t))
+    light * t
+  }
+
 }

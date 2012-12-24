@@ -109,6 +109,8 @@ trait Scalar extends Units {
   override def reciprocal: Scalar
   override def pow(n: Int): Scalar
 
+  def apply(that: Units) = this * that
+
   def *(that: Scalar): Scalar
   def /(that: Scalar): Scalar = this * that.reciprocal
 
