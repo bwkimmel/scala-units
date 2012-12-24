@@ -354,8 +354,7 @@ class UnitsParser extends JavaTokenParsers {
     }
 
   lazy val quotient: Parser[Units] =
-    product ~ "per" ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) } |
-    product ~ "/" ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) }
+    product ~ ("/" | "per") ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) }
 
   lazy val reciprocal: Parser[Units] =
     ("/" | "per") ~> product ^^ { case u => ReciprocalUnits(u) }
