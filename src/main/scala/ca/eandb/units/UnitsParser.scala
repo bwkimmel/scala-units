@@ -73,7 +73,7 @@ sealed trait Units extends Ordered[Units] {
     if (a.dimensions != b.dimensions)
       throw new IncompatibleUnitsException(this, that)
 
-    CanonicalUnits(a.scale + b.scale, a.dimensions) in this
+    CanonicalUnits(a.scale + b.scale, a.dimensions) in this.root
   }
 
   def -(that: Units): Units = {
@@ -82,7 +82,7 @@ sealed trait Units extends Ordered[Units] {
     if (a.dimensions != b.dimensions)
       throw new IncompatibleUnitsException(this, that)
 
-    CanonicalUnits(a.scale - b.scale, a.dimensions) in this
+    CanonicalUnits(a.scale - b.scale, a.dimensions) in this.root
   }
 
   def root: Units = this
