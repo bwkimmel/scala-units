@@ -570,10 +570,10 @@ class UnitsParser extends JavaTokenParsers {
 }
 
 object Helpers {
-  implicit def decimal2units(value: BigDecimal) = DecimalScalar(value)
-  implicit def bigInt2units(value: BigInt) = IntegerScalar(value)
-  implicit def int2units(value: Int) = IntegerScalar(BigInt(value))
-  implicit def long2units(value: Long) = IntegerScalar(BigInt(value))
-  implicit def double2units(value: Double) = DecimalScalar(BigDecimal(value))
+  implicit def decimal2units(value: BigDecimal) = DecimalScalar(value).canonicalScalar
+  implicit def bigInt2units(value: BigInt) = IntegerScalar(value).canonicalScalar
+  implicit def int2units(value: Int) = IntegerScalar(BigInt(value)).canonicalScalar
+  implicit def long2units(value: Long) = IntegerScalar(BigInt(value)).canonicalScalar
+  implicit def double2units(value: Double) = DecimalScalar(BigDecimal(value)).canonicalScalar
 }
 
