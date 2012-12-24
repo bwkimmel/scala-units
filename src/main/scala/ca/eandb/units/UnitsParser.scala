@@ -86,6 +86,8 @@ trait Scalar extends Units {
 
   override def *(that: Units): Units = that match {
     case s: Scalar => this * s
+    case CanonicalUnits(scale, dims) =>
+      CanonicalUnits(this * scale, dims)
     case ProductUnits((s: Scalar) :: rest) =>
       ProductUnits((this * s) :: rest)
     case _ => super.*(that)
@@ -129,6 +131,7 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
 
   override def *(that: Units): Units = that match {
     case u : CanonicalUnits => this * u
+    case s : Scalar => CanonicalUnits(scale * s, dimensions)
     case u => super.*(u)
   }
 
