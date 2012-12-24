@@ -320,6 +320,7 @@ case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   def canonical =
     PowerUnits(u, -1).canonical
   override def root = if (u isScalar) OneUnits else ReciprocalUnits(u root)
+  override def reciprocal = u
 }
 
 case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
