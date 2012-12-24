@@ -28,8 +28,7 @@ package ca.eandb.units
 import scala.util.parsing.combinator.JavaTokenParsers
 import scala.io.Source
 
-
-sealed trait Units {
+sealed trait Units extends Ordered[Units] {
   def canonical: CanonicalUnits
   def isScalar: Boolean = false
 
@@ -56,6 +55,13 @@ sealed trait Units {
   def reciprocal: Units
 
   def pow(n: Int): Units
+
+  def compare(that: Units): Int = {
+    val ratio = QuotientUnits(this, that).canonical
+    if (!ratio.isScalar)
+      throw new IncompatibleUnitsException(this, that)
+    ratio.scale.decimalValue compare 1
+  }
 
   def label: String
   def termLabel: String = label
