@@ -56,6 +56,7 @@ sealed trait Units extends Ordered[Units] {
   }
 
   def /(that: Units): Units = this * that.reciprocal
+  def per(that: Units): Units = this / that
   def reciprocal: Units
 
   def pow(n: Int): Units
