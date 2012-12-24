@@ -227,4 +227,7 @@ class CommonUnits(units: UnitsParser) {
 
   lazy val USD = units("US$")
 
+  lazy val dollar = units("dollar")
+  lazy val dollars = units("dollars")
+
 }
