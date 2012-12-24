@@ -183,7 +183,7 @@ class UndefinedUnitsException(symbol: String)
   extends IllegalArgumentException("Cannot resolve symbol: %s".format(symbol))
 
 case class PrimitiveUnits(symbol: String) extends NonScalarUnits {
-  def canonical = CanonicalUnits(OneUnits, Map() + (this -> 1))
+  def canonical = CanonicalUnits(OneUnits, Map(this -> 1))
   def label = symbol
 }
 
