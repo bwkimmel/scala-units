@@ -51,7 +51,7 @@ sealed trait Units extends Ordered[Units] {
     case _ => ProductUnits(List(this, that))
   }
 
-  def /(that: Units): Units = this * reciprocal
+  def /(that: Units): Units = this * that.reciprocal
   def reciprocal: Units
 
   def pow(n: Int): Units
