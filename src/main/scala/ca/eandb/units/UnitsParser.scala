@@ -203,7 +203,25 @@ case class PowerUnits(base: Units, exp: Int) extends Units {
 }
 
 case class ProductUnits(terms: List[Units]) extends Units {
-  def label = terms.map(_.termLabel).mkString(" ")
+  def label = {
+    val result = new StringBuilder
+    def build(ts: List[Units]): Unit = ts match {
+      case Nil =>
+      case (t : QuotientUnits) :: Nil =>
+        result.append(t.label)
+      case (t : ReciprocalUnits) :: Nil =>
+        result.append(t.label)
+      case t :: Nil =>
+        result.append(t.termLabel)
+      case t :: rest =>
+        result.append(t.termLabel)
+        result.append(" ")
+        build(rest)
+    }
+    build(terms)
+    result.toString
+  }
+
   override def termLabel = "(%s)".format(label)
 
   private def flatten(terms: List[Units]): List[Units] = terms.map(_.canonical) flatMap {
