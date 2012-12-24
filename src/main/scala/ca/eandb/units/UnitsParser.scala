@@ -63,6 +63,7 @@ sealed trait Units extends Ordered[Units] {
   def reciprocal: Units
 
   def pow(n: Int): Units
+  def **(n: Int): Units = this pow n
 
   def compare(that: Units): Int = {
     val ratio = QuotientUnits(this, that).canonical
