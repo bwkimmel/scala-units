@@ -284,44 +284,6 @@ case class IntegerScalar(value: BigInt) extends Scalar {
   def decimalValue = BigDecimal(value)
 }
 
-case class UnitsRef(symbol: String, defs: String => Option[SymbolDef]) extends NonScalarUnits {
-  def label = symbol
-  def canonical = resolve canonical
-
-  private def resolve: Units = {
-
-    def splits(s: String): Seq[(String, String)] =
-      for (i <- 0 to s.length) yield (s splitAt i)
-
-    def resolveSplit(prefix: String, name: String) = (defs("%s-" format prefix), defs(name)) match {
-      case (Some(PrefixDef(_, scale)), Some(SymbolDef(_, base))) =>
-        Some(ProductUnits(List(scale, base)))
-      case _ => None
-    }
-
-    val pluralType1 = "^(.*)s$".r
-    val pluralType2 = "^(.*)es$".r
-    val pluralType3 = "^(.*)ies$".r
-
-    type RootFunc = PartialFunction[String, String]
-    val roots: Stream[String] = Stream(
-      { case root => root } : RootFunc,
-      { case pluralType1(root) => root } : RootFunc,
-      { case pluralType2(root) => root } : RootFunc,
-      { case pluralType3(root) => root + "y" } : RootFunc
-    ) map { _ lift } flatMap { _(symbol) }
-
-    roots flatMap splits flatMap {
-      case ("", name) => defs(name).map(_.units)
-      case (prefix, "") => defs("%s-" format prefix).map(_.units)
-      case (prefix, name) => resolveSplit(prefix, name)
-    } headOption match {
-      case Some(u) => u.canonical
-      case None => throw new UndefinedUnitsException(symbol)
-    }
-  }
-}
-
 sealed abstract case class SymbolDef(name: String, units: Units)
 
 case class UnitDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
@@ -408,7 +370,45 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
 class UnitsParser extends JavaTokenParsers {
 
   private var _defs: Map[String, SymbolDef] = Map.empty
-  def resolve(s: String): Option[SymbolDef] = _defs.get(s)
+
+  case class UnitsRef(symbol: String) extends NonScalarUnits {
+    def label = symbol
+    def canonical = resolve canonical
+  
+    private def resolve: Units = {
+      lazy val defs = _defs.lift
+  
+      def splits(s: String): Seq[(String, String)] =
+        for (i <- 0 to s.length) yield (s splitAt i)
+  
+      def resolveSplit(prefix: String, name: String) = (defs("%s-" format prefix), defs(name)) match {
+        case (Some(PrefixDef(_, scale)), Some(SymbolDef(_, base))) =>
+          Some(ProductUnits(List(scale, base)))
+        case _ => None
+      }
+  
+      val pluralType1 = "^(.*)s$".r
+      val pluralType2 = "^(.*)es$".r
+      val pluralType3 = "^(.*)ies$".r
+  
+      type RootFunc = PartialFunction[String, String]
+      val roots: Stream[String] = Stream(
+        { case root => root } : RootFunc,
+        { case pluralType1(root) => root } : RootFunc,
+        { case pluralType2(root) => root } : RootFunc,
+        { case pluralType3(root) => root + "y" } : RootFunc
+      ) map { _ lift } flatMap { _(symbol) }
+  
+      roots flatMap splits flatMap {
+        case ("", name) => defs(name).map(_.units)
+        case (prefix, "") => defs("%s-" format prefix).map(_.units)
+        case (prefix, name) => resolveSplit(prefix, name)
+      } headOption match {
+        case Some(u) => u.canonical
+        case None => throw new UndefinedUnitsException(symbol)
+      }
+    }
+  }
 
   lazy val dimensionless: Parser[Units] =
     "!" ~ "dimensionless" ^^^ { OneUnits }
@@ -432,13 +432,13 @@ class UnitsParser extends JavaTokenParsers {
 
   lazy val nameWithExponent: Parser[Units] =
     nameWithExponent1 ^? {
-      case nameWithExponent2(name, exp) => PowerUnits(UnitsRef(name, resolve), exp.toInt)
-      case nameWithExponent3(name, exp) => PowerUnits(UnitsRef(name, resolve), exp.toInt)
+      case nameWithExponent2(name, exp) => PowerUnits(UnitsRef(name), exp.toInt)
+      case nameWithExponent3(name, exp) => PowerUnits(UnitsRef(name), exp.toInt)
     }
 
   lazy val symbol: Parser[Units] =
     name ^? {
-      case symbol if symbol != "per" => UnitsRef(symbol, resolve)
+      case symbol if symbol != "per" => UnitsRef(symbol)
     }
 
   lazy val decimal: Parser[Units] =
@@ -527,7 +527,7 @@ class UnitsParser extends JavaTokenParsers {
 
   }
 
-  def create(symbol: String): Units = UnitsRef(symbol, resolve)
+  def create(symbol: String): Units = UnitsRef(symbol)
 
   def parse(s: String): Units = parseAll(units, s) match {
     case Success(u, _) => u
