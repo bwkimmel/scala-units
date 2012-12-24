@@ -53,6 +53,23 @@ sealed trait Units extends Ordered[Units] {
   def in(that: Units): Units = this convertTo that
   def is(that: Units): Boolean = this canConvertTo that
 
+  def in(units: Seq[Units]): Seq[Units] = units match {
+    case Seq() => Nil
+    case Seq(that) =>
+      val (scale, u) = (this convertTo that).split
+      if (scale isZero) Nil else Seq(scale * u)
+    case Seq(that, rest @ _*) =>
+      val (scale, u) = (this convertTo that).split
+      scale.truncate match {
+        case (intPart, fracPart) if intPart.isZero =>
+          (fracPart * u in rest)
+        case (intPart, fracPart) =>
+          (intPart * u) +: (fracPart * u in rest)
+      }
+  }
+
+  def in(first: Units, rest: Units*): Seq[Units] = in(first +: rest)
+
   def inOneOf(units: Units*): Units = {
     def scale(u: Units): Scalar = u match {
       case CanonicalUnits(scale, _) => scale
