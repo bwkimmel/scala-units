@@ -57,6 +57,13 @@ class CommonUnits(units: UnitsParser) {
   lazy val radian = units("radian")
   lazy val radians = radian
 
+  lazy val deg = units("deg")
+  lazy val degree = deg
+  lazy val degrees = deg
+
+  lazy val arcmin = units("arcmin")
+  lazy val arcsec = units("arcsec")
+
   lazy val sr = units("sr")
   lazy val steradian = sr
 
