@@ -38,14 +38,13 @@ sealed trait Units extends Ordered[Units] {
     this.dimensions == that.dimensions
 
   def convertTo(that: Units): Units = {
-    val ratio = QuotientUnits(this, that).canonical
+    val ratio = (this / that).canonical
     if (!ratio.isScalar)
       throw new IncompatibleUnitsException(this, that)
     that match {
       case CanonicalUnits(scale, dimensions) =>
         CanonicalUnits(scale * ratio.scale, dimensions)
       case ProductUnits(OneUnits :: rest) => ProductUnits(ratio.scale :: rest)
-      case QuotientUnits(OneUnits, d) => QuotientUnits(ratio.scale, d)
       case ProductUnits(terms) => ProductUnits(ratio.scale :: terms)
       case u => ProductUnits(List(ratio.scale, that))
     }
@@ -58,7 +57,6 @@ sealed trait Units extends Ordered[Units] {
     def scale(u: Units): Scalar = u match {
       case CanonicalUnits(scale, _) => scale
       case ProductUnits((scale: Scalar) :: _) => scale
-      case QuotientUnits(scale: Scalar, _) => scale
       case _ => OneUnits
     }
 
@@ -85,7 +83,7 @@ sealed trait Units extends Ordered[Units] {
   def **(n: Int): Units = this pow n
 
   def compare(that: Units): Int = {
-    val ratio = QuotientUnits(this, that).canonical
+    val ratio = (this / that).canonical
     if (!ratio.isScalar)
       throw new IncompatibleUnitsException(this, that)
     ratio.scale.decimalValue compare 1
@@ -316,21 +314,6 @@ sealed abstract case class SymbolDef(name: String, units: Units)
 case class UnitDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
 case class PrefixDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
 
-case class QuotientUnits(n: Units, d: Units) extends NonScalarUnits {
-  def label = "%s / %s".format(n.termLabel, d.termLabel)
-  override def termLabel = "(%s)".format(label)
-  def canonical =
-    ProductUnits(List(n, PowerUnits(d, -1))).canonical
-
-  override def root =
-    if (n isScalar)
-      ReciprocalUnits(d).root
-    else if (d isScalar)
-      n root
-    else
-      QuotientUnits(n root, d root)
-}
-
 case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   def label = "/ %s".format(u.termLabel)
   override def termLabel = "(%s)".format(label)
@@ -363,8 +346,6 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
     val result = new StringBuilder
     def build(ts: List[Units]): Unit = ts match {
       case Nil =>
-      case (t : QuotientUnits) :: Nil =>
-        result.append(t.label)
       case (t : ReciprocalUnits) :: Nil =>
         result.append(t.label)
       case t :: Nil =>
@@ -516,7 +497,7 @@ class UnitsParser extends JavaTokenParsers {
     }
 
   private lazy val quotient: Parser[Units] =
-    product ~ ("/" | "per") ~ product ^^ { case n ~_~ d => QuotientUnits(n, d) }
+    product ~ ("/" | "per") ~ product ^^ { case n ~_~ d => n / d }
 
   private lazy val reciprocal: Parser[Units] =
     ("/" | "per") ~> product ^^ { case u => ReciprocalUnits(u) }
