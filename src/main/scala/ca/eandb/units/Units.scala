@@ -561,7 +561,10 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   }
 
   override def pow(e: Int): Scalar =
-    RationalScalar(n pow e, d pow e).canonicalScalar
+    if (e >= 0)
+      RationalScalar(n pow e, d pow e).canonicalScalar
+    else
+      reciprocal pow -e
 
   override def reciprocal =
     if (n > 0)
