@@ -37,6 +37,7 @@ Limitations:
 Definitions may be added manually:
 
     u.define("fortnight 2 weeks")
+    u.define("quatloo !")
 
 The definition should follow the GNU Units
 [definition](http://www.gnu.org/software/units/manual/units.html#Unit-Definitions)
