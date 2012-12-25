@@ -25,7 +25,36 @@
  */
 package ca.eandb.units
 
+/**
+ * Variable definitions for common units.  This class is intended to be
+ * imported to provide convenient reference to common units.  All fields are
+ * lazy so that units which have not beend defined in the underlying
+ * UnitsParser will cause problems if they are not referenced.
+ *
+ * Example usage:
+ *
+ * <pre>
+ *   val units = new UnitsParser
+ *   // ... load units ...
+ *   val common = new CommonUnits(units)
+ *   
+ *   import common._
+ *
+ *   val x = 100 (km / h) in mph
+ * </pre>
+ */
 class CommonUnits(units: UnitsParser) {
+
+  //----------------------------------------------------------------
+  // Names of common unit classes -- useful for dimensional analysis
+  //
+  // Example usage:
+  //   val x = 9.8 (m / s / s) is accleration
+  //   => true
+  //   
+  //   val x = 250 (mL) is area
+  //   => false
+  //
 
   lazy val time = units("TIME")
   lazy val length = units("LENGTH")
@@ -53,6 +82,8 @@ class CommonUnits(units: UnitsParser) {
   lazy val luminance = units("LUMINANCE")
   lazy val information = units("INFORMATION")
   lazy val entropy = units("ENTROPY")
+
+  //----------------------------------------------------------------
 
   lazy val radian = units("radian")
   lazy val radians = radian
@@ -243,10 +274,27 @@ class CommonUnits(units: UnitsParser) {
   lazy val dollars = units("dollars")
 
   private lazy val light = units("light")
+
+  /**
+   * Create units of length like light-{time}.
+   * Example: <code>val ly = light(year)</code>
+   * @param t Units of time
+   * @return Units of length equivalent to the distance light travels in time
+   *   <code>t</code>.
+   */
   def light(t: Units): Units = {
     require(t is time, "Required time but got %s".format(t))
     light * t
   }
+
+
+  //----------------------------------------------------------------
+  // Some common compound units.
+  //
+  // Example usage:
+  //   val t = 3.28 (hours) in hms
+  //   => List(3 hour, 16 min, 48 s)
+  //
 
   lazy val hms = Seq(h, min, s)
   lazy val duration = Seq(year, day, h, min, s)
