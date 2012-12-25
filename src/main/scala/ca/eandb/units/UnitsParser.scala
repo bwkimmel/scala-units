@@ -683,7 +683,7 @@ case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
   }
 
   override def pow(n: Int): Units = base match {
-    case PowerUnits(b, e) => PowerUnits(b, e * n)
+    case PowerUnits(b, e) => PowerUnits(b, e * exp * n)
     case _ => super.pow(n)
   }
 
