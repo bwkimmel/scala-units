@@ -873,15 +873,15 @@ class UnitsParser extends JavaTokenParsers {
 
   private lazy val scalar: Parser[Units] = rational | decimal
 
-  private lazy val base: Parser[Units] =
+  private lazy val atom: Parser[Units] =
     "(" ~> quotient <~ ")" |
     "(" ~> product <~ ")" |
     symbol |
+    nameWithExponent |
     scalar
 
   private lazy val power: Parser[Units] =
-    nameWithExponent |
-    base ~ ("^" ~> wholeNumber).+ ^? {
+    atom ~ ("^" ~> wholeNumber).+ ^? {
       case base ~ exps if exps.tail.map(_.toInt).forall(_ >= 0) =>
         def pow(b: Int, e: Int, acc: Int = 1): Int = (b, e) match {
           case (_, 0) => acc
@@ -909,7 +909,7 @@ class UnitsParser extends JavaTokenParsers {
   private lazy val reciprocal: Parser[Units] =
     ("/" | "per") ~> product ^^ { case u => ReciprocalUnits(u) }
 
-  private lazy val term: Parser[Units] = power | base
+  private lazy val term: Parser[Units] = power | atom
   private lazy val single: Parser[Units] = quotient | product | reciprocal
 
   private lazy val units: Parser[Units] =
