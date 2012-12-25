@@ -236,7 +236,13 @@ sealed trait Units extends Ordered[Units] {
    * Raises these Units to the specified power.
    * @param n The exponent.
    */
-  def **(n: Int): Units = this pow n
+  def **(n: Int): Units = n match {
+    case 0 => OneUnits
+    case 1 => this
+    case -1 => reciprocal
+    case n if n < 0 => reciprocal pow -n
+    case n => this pow n
+  }
 
   /**
    * Compares these Units to another.
@@ -336,9 +342,21 @@ trait Scalar extends Units {
   /** Expresses this Scalar in canonical form. */
   def canonicalScalar: Scalar
 
+  override def split = (this, OneUnits)
   override def reciprocal: Scalar
   override def pow(n: Int): Scalar
-  override def split = (this, OneUnits)
+
+  /**
+   * Raises this Scalar to the specified power.
+   * @param n The exponent.
+   */
+  override def **(n: Int): Scalar = n match {
+    case 0 => OneUnits
+    case 1 => this
+    case -1 => reciprocal
+    case n if n < 0 => reciprocal pow -n
+    case n => this pow n
+  }
 
   /** Splits this Scalar into integral and fractional parts. */
   def truncate: (IntegerScalar, Scalar)
@@ -540,11 +558,8 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
     case DecimalScalar(x) => DecimalScalar(x * decimalValue).canonicalScalar
   }
 
-  override def pow(e: Int): Scalar = e match {
-    case 0 => OneUnits
-    case e if e > 0 => RationalScalar(n pow e, d pow e).canonicalScalar
-    case e if e < 0 => RationalScalar(d pow -e, n pow -e).canonicalScalar
-  }
+  override def pow(e: Int): Scalar =
+    RationalScalar(n pow e, d pow e).canonicalScalar
 
   override def reciprocal = RationalScalar(d, n).canonicalScalar
   def label = "%s|%s".format(n, d)
@@ -603,11 +618,8 @@ case class IntegerScalar(value: BigInt) extends Scalar {
     case DecimalScalar(x) => DecimalScalar(decimalValue * x).canonicalScalar
   }
 
-  override def pow(e: Int): Scalar = e match {
-    case 0 => OneUnits
-    case e if e > 0 => IntegerScalar(value pow e).canonicalScalar
-    case e if e < 0 => RationalScalar(1, value pow -e).canonicalScalar
-  }
+  override def pow(e: Int): Scalar =
+    IntegerScalar(value pow e).canonicalScalar
 
   def label = value.toString
 
@@ -659,13 +671,7 @@ case class ReciprocalUnits(u: Units) extends Units {
   }
   override def mapScalars(f: Scalar => Scalar) = ReciprocalUnits(u mapScalars f)
   def reciprocal = u
-  def pow(n: Int) = n match {
-    case 0 => OneUnits
-    case 1 => this
-    case -1 => u
-    case n if n > 0 => ReciprocalUnits(u pow n)
-    case n if n < 0 => u pow -n
-  }
+  def pow(n: Int) = ReciprocalUnits(u pow n)
 }
 
 /**
