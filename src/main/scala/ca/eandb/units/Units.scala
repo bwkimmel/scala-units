@@ -236,7 +236,7 @@ sealed trait Units extends Ordered[Units] {
    * Raises these Units to the specified power.
    * @param n The exponent.
    */
-  def **(n: Int): Units = n match {
+  def ~(n: Int): Units = n match {
     case 0 => OneUnits
     case 1 => this
     case -1 => reciprocal
@@ -350,7 +350,7 @@ trait Scalar extends Units {
    * Raises this Scalar to the specified power.
    * @param n The exponent.
    */
-  override def **(n: Int): Scalar = n match {
+  override def ~(n: Int): Scalar = n match {
     case 0 => OneUnits
     case 1 => this
     case -1 => reciprocal

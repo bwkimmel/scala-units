@@ -64,7 +64,7 @@ Common units may be imported for convenience:
     val common = new CommonUnits(u)
     import common._
 
-    val g = 9.8 (m / (s ** 2))
+    val g = 9.8 (m / s~2)
     val e = 1.3 (kW) * 8 (hours) in J
 
 
