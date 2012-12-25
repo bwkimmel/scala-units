@@ -116,10 +116,10 @@ simply duplicate the last units:
 
 To include zero-valued components, use "inAllOf":
 
-    val x = 90.2 (seconds) in (hour, min, s)
+    val x = 90.2 (seconds) inAllOf (hour, min, s)
     println(x)  // => List(0 hour, 1 min, 30.2 s)
 
-    val x = 3602 (seconds) in (hour, min, s)
+    val x = 3602 (seconds) inAllOf (hour, min, s)
     println(x)  // => List(1 hour, 0 min, 2 s)
 
 
