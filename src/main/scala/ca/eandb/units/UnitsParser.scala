@@ -522,9 +522,11 @@ case class PrimitiveUnits(symbol: String) extends Units {
 /**
  * A Scalar that is the ratio of two integers.
  * @param n The numerator
- * @param d The denominator
+ * @param d The denominator (must be positive)
  */
 case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
+  require(d > 0, "denominator must be positive")
+
   def canonicalScalar = if (n == d) OneUnits else {
     val r = n gcd d
 
@@ -561,7 +563,12 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   override def pow(e: Int): Scalar =
     RationalScalar(n pow e, d pow e).canonicalScalar
 
-  override def reciprocal = RationalScalar(d, n).canonicalScalar
+  override def reciprocal =
+    if (n > 0)
+      RationalScalar(d, n).canonicalScalar
+    else
+      RationalScalar(-d, -n).canonicalScalar
+
   def label = "%s|%s".format(n, d)
 
   override def isZero = (n == 0)
@@ -604,7 +611,8 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
 /** An integer-valued Scalar. */
 case class IntegerScalar(value: BigInt) extends Scalar {
   def canonicalScalar: IntegerScalar = if (value == 1) OneUnits else this
-  override def reciprocal = RationalScalar(1, value).canonicalScalar
+  override def reciprocal =
+    RationalScalar(value.signum, value.abs).canonicalScalar
 
   def truncate = (this, IntegerScalar(0))
 
