@@ -28,15 +28,31 @@ package ca.eandb.units
 import scala.util.parsing.combinator.JavaTokenParsers
 import scala.io.Source
 
+/** Represents a quantity with associated units. */
 sealed trait Units extends Ordered[Units] {
+
+  /** <code>CanonicalUnits</code> equivalent to this instance. */
   def canonical: CanonicalUnits
+
+  /** Determines if these Units are dimensionless (scalar). */
   def isScalar: Boolean = false
 
+  /** The dimensions of these Units (i.e., powers of the primitive units). */
   def dimensions: Map[PrimitiveUnits, Int] = canonical.dimensions
 
+  /**
+   * Determines if we can convert to the specified Units.
+   * @param that The Units to test for compatibility with.
+   */
   def canConvertTo(that: Units): Boolean =
     this.dimensions == that.dimensions
 
+  /**
+   * Converts these Units to the specified Units
+   * @param that The Units to convert to
+   * @throws IncompatibleUnitsException if the dimensions of these Units are
+   *   different from the dimensions of <code>that</code>.
+   */
   def convertTo(that: Units): Units = {
     val ratio = (this / that).canonical
     if (!ratio.isScalar)
@@ -50,9 +66,36 @@ sealed trait Units extends Ordered[Units] {
     }
   }
 
+  /**
+   * Converts these Units to the specified Units
+   * @param that The Units to convert to
+   * @throws IncompatibleUnitsException if the dimensions of these Units are
+   *   different from the dimensions of <code>that</code>.
+   */
   def in(that: Units): Units = this convertTo that
+
+  /**
+   * Determines if we can convert to the specified Units.
+   * @param that The Units to test for compatibility with.
+   */
   def is(that: Units): Boolean = this canConvertTo that
 
+  /**
+   * Converts these Units to the provided sequence of units.  All units
+   * returned will be an integral multiple of the provided units except
+   * potentially the last.
+   * 
+   * Example:
+   * <pre>
+   *   90.5 (seconds) inAllOf Seq(hours, minutes, seconds)
+   *   => (0 hours, 1 minute, 30.5 seconds)
+   * </pre>
+   *
+   * @param units The sequence of Units to convert to.  These should be in
+   *   descending order by scale.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   one of the provided sequence of Units.
+   */
   def inAllOf(units: Seq[Units]): Seq[Units] = units match {
     case Seq() => Nil
     case Seq(that) => Seq(this convertTo that)
@@ -65,11 +108,86 @@ sealed trait Units extends Ordered[Units] {
       }
   }
 
+  /**
+   * Converts these Units to the provided sequence of units.  All units
+   * returned will be an integral multiple of the provided units except
+   * potentially the last.
+   * 
+   * Example:
+   * <pre>
+   *   90.5 (seconds) inAllOf (hours, minutes, seconds)
+   *   => (0 hours, 1 minute, 30.5 seconds)
+   * </pre>
+   *
+   * @param first The first of the sequence of Units to convert to.
+   * @param rest The rest of the sequence of Units to convert to.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   one of the provided sequence of Units.
+   */
   def inAllOf(first: Units, rest: Units*): Seq[Units] = inAllOf(first +: rest)
 
+  /**
+   * Converts these Units to the provided sequence of units.  All units
+   * returned will be an integral multiple of the provided units except
+   * potentially the last.  Zero-valued units are removed.
+   * 
+   * Examples:
+   * <pre>
+   *   90.5 (seconds) in Seq(hours, minutes, seconds)
+   *   => (1 minute, 30.5 seconds)
+   *
+   *   3602 (seconds) in Seq(hours, minutes, seconds)
+   *   => (1 hour, 2 seconds)
+   * </pre>
+   *
+   * @param units The sequence of Units to convert to.  These should be in
+   *   descending order by scale.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   one of the provided sequence of Units.
+   */
   def in(units: Seq[Units]): Seq[Units] = inAllOf(units) filterNot (_.isZero)
+
+  /**
+   * Converts these Units to the provided sequence of units.  All units
+   * returned will be an integral multiple of the provided units except
+   * potentially the last.  Zero-valued units are removed.
+   * 
+   * Examples:
+   * <pre>
+   *   90.5 (seconds) in (hours, minutes, seconds)
+   *   => (1 minute, 30.5 seconds)
+   *
+   *   3602 (seconds) in (hours, minutes, seconds)
+   *   => (1 hour, 2 seconds)
+   * </pre>
+   *
+   * @param first The first of the sequence of Units to convert to.
+   * @param rest The rest of the sequence of Units to convert to.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   one of the provided sequence of Units.
+   */
   def in(first: Units, rest: Units*): Seq[Units] = in(first +: rest)
 
+  /**
+   * Converts these Units to one of the provided sequence of Units.  The Units
+   * that are selected will be the first in the sequence with a scalar value of
+   * at least one.  If the scalar value in all provided Units is less than one,
+   * the return value will be expressed in the last units.
+   *
+   * Examples:
+   * <pre>
+   *   90 (seconds) inOneOf (hours, minutes, seconds)
+   *   => 1.5 minutes
+   *
+   *   2100 (MHz) inOneOf (GHz, MHz, kHz, Hz)
+   *   => 2.1 GHz
+   * </pre>
+   *
+   * @param units The sequence of Units to try to convert these Units to.  The
+   *   units should be provided in descending order by scale.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   one of the provided sequence of Units.
+   */
   def inOneOf(units: Units*): Units = {
     def scale(u: Units) = u.split._1
     def scan(units: Seq[Units]): Units = units match {
@@ -80,19 +198,59 @@ sealed trait Units extends Ordered[Units] {
     scan(units.view.map(this in _))
   }
 
+  /**
+   * Multiplies these Units with another.
+   * @param that The Units to multiply by.
+   * @return The product of these Units with <code>that</code>.
+   */
   def *(that: Units): Units = that match {
     case ProductUnits(terms) => ProductUnits(this :: terms)
     case s: Scalar => s * this
     case _ => ProductUnits(List(this, that))
   }
 
+  /**
+   * Divides these Units by another.
+   * @param that The Units to divide by.
+   * @return The quotient of these Units with <code>that</code>.
+   */
   def /(that: Units): Units = this * that.reciprocal
+
+  /**
+   * Divides these Units by another.
+   * @param that The Units to divide by.
+   * @return The quotient of these Units with <code>that</code>.
+   */
   def per(that: Units): Units = this / that
+
+  /** Gets the multiplicative inverse of these Units. */
   def reciprocal: Units
 
+  /**
+   * Raises these Units to the specified power.
+   * @param n The exponent.
+   */
   def pow(n: Int): Units
+
+  /**
+   * Raises these Units to the specified power.
+   * @param n The exponent.
+   */
   def **(n: Int): Units = this pow n
 
+  /**
+   * Compares these Units to another.
+   * @param that The Units to compare against.
+   * @return A value indicating the relative scale of these Units with
+   *   <code>that</code>:
+   *   <ul>
+   *     <li>-1 if <code>this &lt; that</code>.</li>
+   *     <li>1 if <code>this &gt; that</code>.</li>
+   *     <li>0 if <code>this == that</code>.</li>
+   *   </ul>
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   <code>that</code>.
+   */
   def compare(that: Units): Int = {
     val ratio = (this / that).canonical
     if (!ratio.isScalar)
@@ -100,6 +258,14 @@ sealed trait Units extends Ordered[Units] {
     ratio.scale.decimalValue compare 1
   }
 
+  /**
+   * Adds these Units to another.
+   * @param that The Units to add.
+   * @return The sum of these Units with <code>that</code>, expressed in the
+   *   same units as <code>this</code>.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   <code>that</code>.
+   */
   def +(that: Units): Units = {
     val a = this.canonical
     val b = that.canonical
@@ -109,6 +275,14 @@ sealed trait Units extends Ordered[Units] {
     CanonicalUnits(a.scale + b.scale, a.dimensions) in this.root
   }
 
+  /**
+   * Subtracts the specified Units from <code>this</code>.
+   * @param that The Units to subtract.
+   * @return The difference of these Units with <code>that</code>, expressed in
+   *   the same units as <code>this</code>.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   <code>that</code>.
+   */
   def -(that: Units): Units = {
     val a = this.canonical
     val b = that.canonical
@@ -118,40 +292,106 @@ sealed trait Units extends Ordered[Units] {
     CanonicalUnits(a.scale - b.scale, a.dimensions) in this.root
   }
 
+  /**
+   * Transforms all of the scalars in these Units.
+   * @param f The function to use to transform the scalars.
+   * @return These Units with the scalars transformed by <code>f</code>.
+   */
   def mapScalars(f: Scalar => Scalar): Units = this
 
+  /**
+   * Separates the scalar portion of these Units from the symbolic portion.
+   * @return A Scalar <code>x</code> and a Units <code>u</code> not consisting
+   *   of any Scalars such that <code>x * u</code> is equivalent to
+   *   <code>this</code>.
+   */
   def split: (Scalar, Units) = (OneUnits, this)
+
+  /** Indicates if these Units have zero value. */
   def isZero: Boolean = split._1.isZero
 
   def root: Units = this
 
+  /** A string parsable into Units equivalent to <code>this</code>. */
   def label: String
+
+  /**
+   * A string parsable into Units equivalent to <code>this</code> that can be
+   * safely combined other unit labels without operator precedence changing
+   * these Units' meaning.
+   */
   def termLabel: String = label
+
+  /** A string parsable into Units equivalent to <code>this</code>. */
   override def toString = label
+
 }
 
+/** Abstract base class for non-scalar Units types. */
 abstract class NonScalarUnits extends Units {
   def reciprocal: Units = ReciprocalUnits(this)
   def pow(n: Int): Units = PowerUnits(this, n)
 }
 
+/** Represents dimensionless quantities */
 trait Scalar extends Units {
+
   override def isScalar: Boolean = true
-  def canonicalScalar: Scalar
   def canonical = CanonicalUnits(canonicalScalar)
+
+  /** Expresses this Scalar in canonical form. */
+  def canonicalScalar: Scalar
 
   override def reciprocal: Scalar
   override def pow(n: Int): Scalar
   override def split = (this, OneUnits)
 
+  /** Splits this Scalar into integral and fractional parts. */
   def truncate: (IntegerScalar, Scalar)
 
   override def mapScalars(f: Scalar => Scalar) = f(this)
 
+  /**
+   * Applies the specified Units to this Scalar quantity.  Equivalent to
+   * <code>this * that</code>.  This is primarily for syntactial convenience.
+   * Useful when combined with implicit conversions from primitive types.
+   *
+   * Example usage:
+   * <pre>
+   *   val km = units("km")
+   *   val x = 50 (km)
+   * </pre>
+   *
+   * @param that The Units to apply.
+   */
   def apply(that: Units) = this * that
 
+  /**
+   * Multiplies this Scalar with another.
+   * @param that The Scalar to multiply by
+   */
   def *(that: Scalar): Scalar
+
+  /**
+   * Divides this Scalar by another.
+   * @param that The Scalar to divide by
+   */
   def /(that: Scalar): Scalar = this * that.reciprocal
+
+  /**
+   * Adds this Scalar to another.
+   * @param that The Scalar to add
+   */
+  def +(that: Scalar): Scalar
+
+  /**
+   * Subtracts another Scalar from this
+   * @param that The Scalar to subtract
+   */
+  def -(that: Scalar): Scalar = this + (-that)
+
+  /** The additive inverse of this Scalar. */
+  def unary_- : Scalar
 
   override def *(that: Units): Units = that match {
     case s: Scalar => this * s
@@ -167,17 +407,22 @@ trait Scalar extends Units {
     case _ => super./(that)
   }
 
-  def +(that: Scalar): Scalar
-  def -(that: Scalar): Scalar = this + (-that)
-  def unary_- : Scalar
-
   override def isZero: Boolean
 
+  /** The decimal value of this Scalar. */
   def decimalValue: BigDecimal
+
 }
 
+/**
+ * Represents units in a form that can be readily compared for compatibility,
+ * and which allows direct conversion between instances.
+ */
 case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveUnits, Int] = Map.empty)
     extends NonScalarUnits {
+
+  // Require that no dimensions have zero exponents, so that we can test
+  // compatibility by comparing these Maps directly.
   require(dimensions.values.forall(_ != 0), "All exponents must be non-zero")
 
   def canonical = this
@@ -187,6 +432,7 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
 
   override def mapScalars(f: Scalar => Scalar) = CanonicalUnits(f(scale), dimensions)
 
+  /** Expresses these Units as products of powers of primitive Units. */
   def expand: Units = {
     val dims = dimensions.toList map {
       case (b, 1) => b
@@ -219,23 +465,50 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
   def label = expand.label
 }
 
+/**
+ * Indicates an attempt to convert to Units of differing dimensions.
+ * @param from The Units that were being converted.
+ * @param to The Units to which conversion was requested.
+ */
 class IncompatibleUnitsException(from: Units, to: Units)
   extends IllegalArgumentException("Incompatible units: %s -> %s".format(from, to))
 
+/**
+ * Indicates a parsing error ocurred while attempting to parse units.
+ * @param units The string being parsed.
+ */
 class UnitsParsingException(units: String)
   extends IllegalArgumentException("Unable to parse units: %s".format(units))
 
+/**
+ * Indicates a parsing error ocurred while attempting to parse a unit definition.
+ * @param defs The string being parsed.
+ */
 class UnitsDefParsingException(defs: String)
   extends IllegalArgumentException("Unable to parse unit definition: %s".format(defs))
 
+/**
+ * Indicates the presence of an undefined unit while attempting to resolve
+ * units.
+ * @param symbol The symbol for the undefined unit.
+ */
 class UndefinedUnitsException(symbol: String)
   extends IllegalArgumentException("Cannot resolve symbol: %s".format(symbol))
 
+/**
+ * Represents fundamental units (i.e., units which cannot be further reduced).
+ * @param symbol The symbol for these Units
+ */
 case class PrimitiveUnits(symbol: String) extends NonScalarUnits {
   def canonical = CanonicalUnits(OneUnits, Map(this -> 1))
   def label = symbol
 }
 
+/**
+ * A Scalar that is the ratio of two integers.
+ * @param n The numerator
+ * @param d The denominator
+ */
 case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   def canonicalScalar = if (n == d) OneUnits else {
     val r = n gcd d
@@ -283,6 +556,7 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   def decimalValue = BigDecimal(n) / BigDecimal(d)
 }
 
+/** A decimal-valued Scalar. */
 case class DecimalScalar(value: BigDecimal) extends Scalar {
   def canonicalScalar = value.toBigIntExact match {
     case Some(n) => IntegerScalar(n).canonicalScalar
@@ -315,6 +589,7 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
   def decimalValue = value
 }
 
+/** An integer-valued Scalar. */
 case class IntegerScalar(value: BigInt) extends Scalar {
   def canonicalScalar: IntegerScalar = if (value == 1) OneUnits else this
   override def reciprocal = RationalScalar(1, value).canonicalScalar
@@ -343,6 +618,7 @@ case class IntegerScalar(value: BigInt) extends Scalar {
   def decimalValue = BigDecimal(value)
 }
 
+/** The multiplicative identity. */
 case object OneUnits extends IntegerScalar(1) {
   override def canonicalScalar = this
   override def truncate = (this, IntegerScalar(0))
@@ -355,11 +631,26 @@ case object OneUnits extends IntegerScalar(1) {
   override def isZero = false
 }
 
+/**
+ * The definition of a unit of prefix.
+ * @param name The name of the symbol begin defined
+ * @param units The definition of the symbol
+ */
 sealed abstract case class SymbolDef(name: String, units: Units)
 
+/** Represents a Units definition. */
 case class UnitDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
+
+/**
+ * Represents a prefix definition (may be combined with other Units to form new
+ * Units.
+ */
 case class PrefixDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
 
+/**
+ * The multiplicative inverse of another Units.
+ * @param u The reciprocal of these Units
+ */
 case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   def label = "/ %s".format(u.termLabel)
   override def termLabel = "(%s)".format(label)
@@ -373,6 +664,11 @@ case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   override def mapScalars(f: Scalar => Scalar) = ReciprocalUnits(u mapScalars f)
 }
 
+/**
+ * Units raised to an exponent.
+ * @param base The base Units
+ * @param exp The exponent
+ */
 case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
   def label = base match {
     case b : PowerUnits => "(%s)^%d".format(base.label, exp)
@@ -394,6 +690,10 @@ case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
   override def mapScalars(f: Scalar => Scalar) = PowerUnits(base mapScalars f, exp)
 }
 
+/**
+ * The product of a set of Units.
+ * @param terms The list of Units being multiplied
+ */
 case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
   def label = {
     val result = new StringBuilder
@@ -445,14 +745,21 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
   }
 }
 
+/** Parses units. */
 class UnitsParser extends JavaTokenParsers {
 
+  /** Unit and prefix definitions. */
   private var _defs: Map[String, SymbolDef] = Map.empty
 
+  /**
+   * An unresolved reference to derived units.
+   * @param symbol The symbol representing these Units
+   */
   private case class UnitsRef(symbol: String) extends NonScalarUnits {
     def label = symbol
     def canonical = resolve canonical
   
+    /** Expands these Units once according to the Units' definition. */
     private def resolve: Units = {
       lazy val defs = _defs.lift
   
@@ -487,6 +794,9 @@ class UnitsParser extends JavaTokenParsers {
       }
     }
   }
+
+  //----------------------------------------------------------------------------
+  // Parser definitions
 
   private lazy val dimensionless: Parser[Units] =
     "!" ~ "dimensionless" ^^^ { OneUnits }
@@ -583,6 +893,12 @@ class UnitsParser extends JavaTokenParsers {
       case name ~ units => UnitDef(name, units)
     }
 
+  /**
+   * Strips comments and processes line continuations.
+   * @param source The Source to read from
+   * @return A stream of non-empty strings without comments or line
+   *   continuations.
+   */
   private def lines(source: Source): Seq[String] = {
     val withContinuation = """^([^#]*)\\$""".r
     val withOptComment = "^([^#]*)(?:#.*)?$".r
@@ -602,15 +918,62 @@ class UnitsParser extends JavaTokenParsers {
     group(source.getLines.toStream)
   }
 
+  /**
+   * Creates an unresolved reference to the specified symbol.  If the symbol is
+   * undefined, no exception will be thrown until an attempt is made to resolve
+   * the reference (for example by canonicalization, or by converting to another
+   * Units).
+   * @param symbol The symbol to create a reference to.
+   */
   def create(symbol: String): Units = UnitsRef(symbol)
 
-  def parse(s: String): Units = parseAll(units, s) match {
+  /**
+   * Parses the specified units.  No attempt is made to resolve the provided
+   * units.
+   * @param expr The units expression.  Most valid GNU unit expressions are
+   *   supported.  Non-linear expressions (function calls) are not supported.
+   *   Addition and subtraction are not supported.
+   * @throws UnitsParsingException if the provided unit expression is invalid or
+   *   not supported.
+   * @see
+   *   <a href="http://www.gnu.org/software/units/manual/units.html#Unit-Expressions">
+   *     GNU Units - Unit Expressions
+   *   </a>
+   */
+  def parse(expr: String): Units = parseAll(units, expr) match {
     case Success(u, _) => u
-    case _ => throw new UnitsParsingException(s)
+    case _ => throw new UnitsParsingException(expr)
   }
 
+  /**
+   * Parses the specified units.  No attempt is made to resolve the provided
+   * units.  The <code>apply</code> method is provided for syntactical
+   * convenience.
+   *
+   * Example usage:
+   * <pre>
+   *   val u = new UnitsParser
+   *   // ... load units ...
+   *   val km = u("km")
+   * </pre>
+   *
+   * @param expr The units expression.  Most valid GNU unit expressions are
+   *   supported.  Non-linear expressions (function calls) are not supported.
+   *   Addition and subtraction are not supported.
+   * @throws UnitsParsingException if the provided unit expression is invalid or
+   *   not supported.
+   * @see
+   *   <a href="http://www.gnu.org/software/units/manual/units.html#Unit-Expressions">
+   *     GNU Units - Unit Expressions
+   *   </a>
+   */
   def apply(s: String): Units = parse(s)
 
+  /**
+   * Loads unit definitions from the provided Source.  Note that
+   * <code>!include</code> directives will not be followed.
+   * @param source The Source to read unit definitions from
+   */
   def load(source: Source) {
     val seed: Map[String, SymbolDef] = Map.empty
     _defs ++= lines(source).map(parseAll(definition, _)).foldLeft(seed) {
@@ -619,6 +982,22 @@ class UnitsParser extends JavaTokenParsers {
     }
   }
 
+  /**
+   * Defines a new unit or prefix.  No attempt is made to resolve the unit
+   * definition to powers of primitive units.
+   *
+   * Example usage: <pre>this.define("cent 1|100 dollar")</pre>
+   *
+   * @param spec The unit definition expression.  Most valid GNU unit definition
+   *   expressions are supported.  Non-linear expressions (function calls) are
+   *   not supported.  Addition and subtraction are not supported.
+   * @throws UnitsDefParsingException if the provided unit definition expression
+   *   is invalid or not supported.
+   * @see
+   *   <a href="http://www.gnu.org/software/units/manual/units.html#Unit-Definitions">
+   *     GNU Units - Unit Definitions
+   *   </a>
+   */
   def define(spec: String) {
     val result = parseAll(definition, spec) match {
       case Success(sdef, _) => sdef
@@ -627,6 +1006,21 @@ class UnitsParser extends JavaTokenParsers {
     _defs += (result.name -> result)
   }
 
+  /**
+   * Converts one set of units to another.  Equivalent to
+   *   <code>parse(from) in parse(to)</code>
+   * @param from The string denoting the units to convert
+   * @param to The string denoting the units to convert to
+   * @returns The value of <code>from</code> expressed in the units
+   *   <code>to</code>.
+   * @throws IncompatibleUnitsException If <code>from</code> and <code>to</code>
+   *   have different dimensions
+   * @throws UnitsParsingException If <code>from</code> or <code>to</code>
+   *   cannot be parsed.
+   * @throws UndefinedUnitsException If <code>from</code> or <code>to</code>,
+   *   directly or indirecty, refers to units which cannot be resolved to powers
+   *   of primitive units.
+   */
   def convert(from: String, to: String): Units =
     parse(from) convertTo parse(to)
  
