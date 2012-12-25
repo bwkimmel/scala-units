@@ -327,12 +327,6 @@ sealed trait Units extends Ordered[Units] {
 
 }
 
-/** Abstract base class for non-scalar Units types. */
-abstract class NonScalarUnits extends Units {
-  def reciprocal: Units = ReciprocalUnits(this)
-  def pow(n: Int): Units = PowerUnits(this, n)
-}
-
 /** Represents dimensionless quantities */
 trait Scalar extends Units {
 
@@ -419,7 +413,7 @@ trait Scalar extends Units {
  * and which allows direct conversion between instances.
  */
 case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveUnits, Int] = Map.empty)
-    extends NonScalarUnits {
+    extends Units {
 
   // Require that no dimensions have zero exponents, so that we can test
   // compatibility by comparing these Maps directly.
@@ -460,7 +454,8 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
     case u => super.*(u)
   }
 
-  override def reciprocal = CanonicalUnits(scale.reciprocal, dimensions.mapValues(-_))
+  def reciprocal = CanonicalUnits(scale.reciprocal, dimensions.mapValues(-_))
+  def pow(n: Int) = CanonicalUnits(scale pow n, dimensions.mapValues(_ * n))
 
   def label = expand.label
 }
@@ -499,9 +494,11 @@ class UndefinedUnitsException(symbol: String)
  * Represents fundamental units (i.e., units which cannot be further reduced).
  * @param symbol The symbol for these Units
  */
-case class PrimitiveUnits(symbol: String) extends NonScalarUnits {
+case class PrimitiveUnits(symbol: String) extends Units {
   def canonical = CanonicalUnits(OneUnits, Map(this -> 1))
   def label = symbol
+  def reciprocal = ReciprocalUnits(this)
+  def pow(n: Int) = PowerUnits(this, n)
 }
 
 /**
@@ -651,7 +648,7 @@ case class PrefixDef(override val name: String, override val units: Units) exten
  * The multiplicative inverse of another Units.
  * @param u The reciprocal of these Units
  */
-case class ReciprocalUnits(u: Units) extends NonScalarUnits {
+case class ReciprocalUnits(u: Units) extends Units {
   def label = "/ %s".format(u.termLabel)
   override def termLabel = "(%s)".format(label)
   def canonical =
@@ -660,8 +657,15 @@ case class ReciprocalUnits(u: Units) extends NonScalarUnits {
   override def split = u.split match {
     case (scale, d) => (scale.reciprocal, d.reciprocal)
   }
-  override def reciprocal = u
   override def mapScalars(f: Scalar => Scalar) = ReciprocalUnits(u mapScalars f)
+  def reciprocal = u
+  def pow(n: Int) = n match {
+    case 0 => OneUnits
+    case 1 => this
+    case -1 => u
+    case n if n > 0 => ReciprocalUnits(u pow n)
+    case n if n < 0 => u pow -n
+  }
 }
 
 /**
@@ -669,7 +673,7 @@ case class ReciprocalUnits(u: Units) extends NonScalarUnits {
  * @param base The base Units
  * @param exp The exponent
  */
-case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
+case class PowerUnits(base: Units, exp: Int) extends Units {
   def label = base match {
     case b : PowerUnits => "(%s)^%d".format(base.label, exp)
     case _ => "%s^%d".format(base.termLabel, exp)
@@ -682,9 +686,10 @@ case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
       CanonicalUnits(scale pow e, dims.mapValues(_ * e))
   }
 
-  override def pow(n: Int): Units = base match {
+  def reciprocal = ReciprocalUnits(this)
+  def pow(n: Int): Units = base match {
     case PowerUnits(b, e) => PowerUnits(b, e * exp * n)
-    case _ => super.pow(n)
+    case _ => PowerUnits(base, exp * n)
   }
 
   override def mapScalars(f: Scalar => Scalar) = PowerUnits(base mapScalars f, exp)
@@ -694,7 +699,7 @@ case class PowerUnits(base: Units, exp: Int) extends NonScalarUnits {
  * The product of a set of Units.
  * @param terms The list of Units being multiplied
  */
-case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
+case class ProductUnits(terms: List[Units]) extends Units {
   def label = {
     val result = new StringBuilder
     def build(ts: List[Units]): Unit = ts match {
@@ -743,6 +748,9 @@ case class ProductUnits(terms: List[Units]) extends NonScalarUnits {
     case ProductUnits(rterms) => ProductUnits(terms ::: rterms)
     case _ => ProductUnits(terms :+ that)
   }
+
+  def pow(n: Int) = PowerUnits(this, n)
+  def reciprocal = ReciprocalUnits(this)
 }
 
 /** Parses units. */
@@ -755,7 +763,7 @@ class UnitsParser extends JavaTokenParsers {
    * An unresolved reference to derived units.
    * @param symbol The symbol representing these Units
    */
-  private case class UnitsRef(symbol: String) extends NonScalarUnits {
+  private case class UnitsRef(symbol: String) extends Units {
     def label = symbol
     def canonical = resolve canonical
   
@@ -793,6 +801,9 @@ class UnitsParser extends JavaTokenParsers {
         case None => throw new UndefinedUnitsException(symbol)
       }
     }
+
+    def reciprocal = ReciprocalUnits(this)
+    def pow(n: Int) = PowerUnits(this, n)
   }
 
   //----------------------------------------------------------------------------
