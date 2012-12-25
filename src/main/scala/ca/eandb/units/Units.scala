@@ -832,7 +832,7 @@ class UnitsParser extends JavaTokenParsers {
   private lazy val primitive: Parser[Units] =
     "!" ^^ { case _ => PrimitiveUnits("!") }
 
-  private lazy val name1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*""".r
+  private lazy val name1 = """[^!+*/\|^;~#()\s_,\.\d-][^!+*/\|^;~#()\s-]*""".r
   private lazy val name2 = """^(.*[^_,\.1-9])$""".r
   private lazy val name3 = """^(.*_[\d\.,]*[1-9])$""".r
  
@@ -842,7 +842,7 @@ class UnitsParser extends JavaTokenParsers {
       case name3(s) => s
     }
 
-  private lazy val nameWithExponent1 = """[^+*/\|^;~#()\s_,\.\d-][^+*/\|^;~#()\s-]*[2-9]""".r
+  private lazy val nameWithExponent1 = """[^!+*/\|^;~#()\s_,\.\d-][^!+*/\|^;~#()\s-]*[2-9]""".r
   private lazy val nameWithExponent2 = """^(.*[^_,\.1-9])([2-9])$""".r
   private lazy val nameWithExponent3 = """^(.*_[\d\.,]*[1-9])([2-9])$""".r
 
@@ -909,10 +909,8 @@ class UnitsParser extends JavaTokenParsers {
   private lazy val reciprocal: Parser[Units] =
     ("/" | "per") ~> product ^^ { case u => ReciprocalUnits(u) }
 
-  private lazy val term: Parser[Units] =
-    dimensionless | primitive | power | base
-
-  private lazy val single: Parser[Units] = quotient | reciprocal | product
+  private lazy val term: Parser[Units] = power | base
+  private lazy val single: Parser[Units] = quotient | product | reciprocal
 
   private lazy val units: Parser[Units] =
     rep1sep(single, "*") ^^ {
@@ -920,9 +918,11 @@ class UnitsParser extends JavaTokenParsers {
       case terms => ProductUnits(terms)
     }
 
+  private lazy val rhs: Parser[Units] = primitive | dimensionless | units
+
   private lazy val definition: Parser[SymbolDef] =
-    name ~ "-" ~ units ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
-    name ~ units ^^ {
+    name ~ "-" ~ rhs ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
+    name ~ rhs ^^ {
       case name ~ PrimitiveUnits(_) => UnitDef(name, PrimitiveUnits(name))
       case name ~ units => UnitDef(name, units)
     }
