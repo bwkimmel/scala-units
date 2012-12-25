@@ -164,7 +164,7 @@ Operations on Units
 -------------------
 
 Any two units may be multiplied or divided, or exponentiated.
-Compatibility units are required for addition, subtraction, or
+Compatibile units are required for addition, subtraction, or
 comparisons.
 
     println(km > mile)  // => false
