@@ -134,7 +134,10 @@ units.
     println(kW canonical)  // => 1000 kg m^2 s^-3
 
 Values may be converted between units if, in their canonical form, the
-exponents on all primitive units are identical.
+exponents on all primitive units are identical.  The "dimensions"
+property may be used to obtain a the exponents in the form of a Map:
+
+    println(kW dimensions)  // => Map(kg -> 1, m -> 2, s -> -3)
 
 ### Testing for Compatibility
 
