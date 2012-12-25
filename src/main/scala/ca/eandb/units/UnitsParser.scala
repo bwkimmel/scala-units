@@ -857,9 +857,15 @@ class UnitsParser extends JavaTokenParsers {
   private lazy val decimal: Parser[Units] =
     floatingPointNumber ^^ { case value => DecimalScalar(BigDecimal(value)) }
 
+  val integer = """(-?\d+)""".r
   private lazy val rational: Parser[Units] =
-    wholeNumber ~ "|" ~ wholeNumber ^^ {
-      case n ~_~ d => RationalScalar(BigInt(n), BigInt(d))
+    floatingPointNumber ~ "|" ~ floatingPointNumber ^^ {
+      case integer(n) ~_~ integer(d) =>
+        val (numer, denom) = (BigInt(n), BigInt(d))
+        val sign = denom.signum
+        RationalScalar(sign * numer, sign * denom)
+      case n ~_~ d =>
+        DecimalScalar(BigDecimal(n) / BigDecimal(d))
     }
 
   private lazy val scalar: Parser[Units] = rational | decimal
