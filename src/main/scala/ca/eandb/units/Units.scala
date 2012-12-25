@@ -921,7 +921,7 @@ class UnitsParser extends JavaTokenParsers {
       case terms => ProductUnits(terms)
     }
 
-  private lazy val rhs: Parser[Units] = primitive | dimensionless | units
+  private lazy val rhs: Parser[Units] = dimensionless | primitive | units
 
   private lazy val definition: Parser[SymbolDef] =
     name ~ "-" ~ rhs ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
