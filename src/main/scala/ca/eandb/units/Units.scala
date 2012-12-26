@@ -726,6 +726,14 @@ case class ProductUnits(terms: List[Units]) extends Units {
       case Nil =>
       case (t : ReciprocalUnits) :: Nil =>
         result.append(t.label)
+      case (t : ReciprocalUnits) :: ReciprocalUnits(u) :: rest =>
+        result.append(t.label)
+        result.append(" / ")
+        build(u :: rest)
+      case (t : ReciprocalUnits) :: rest =>
+        result.append(t.label)
+        result.append(" * ")
+        build(rest)
       case t :: Nil =>
         result.append(t.termLabel)
       case t :: rest =>
