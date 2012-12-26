@@ -912,10 +912,10 @@ class UnitsParser extends JavaTokenParsers {
   private lazy val units: Parser[Units] = chainl1(term, plus | minus)
 
   private lazy val dimensionless: Parser[Units] =
-    "!" ~ "dimensionless" ^^^ { OneUnits }
+    "!" ~ "dimensionless" ^^^ OneUnits
 
   private lazy val primitive: Parser[Units] =
-    "!" ^^ { case _ => PrimitiveUnits("!") }
+    "!" ^^^ PrimitiveUnits("!")
 
   private lazy val rhs: Parser[Units] = dimensionless | primitive | units
 
