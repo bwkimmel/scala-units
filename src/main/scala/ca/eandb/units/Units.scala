@@ -25,8 +25,11 @@
  */
 package ca.eandb.units
 
+import scala.collection.mutable
 import scala.util.parsing.combinator.JavaTokenParsers
 import scala.io.Source
+
+import java.util.Locale
 
 /** Represents a quantity with associated units. */
 sealed trait Units extends Ordered[Units] {
@@ -299,6 +302,40 @@ sealed trait Units extends Ordered[Units] {
   }
 
   /**
+   * Negates these Units.
+   * @return The additive inverse of <code>this</code>.
+   */
+  def unary_- : Units = IntegerScalar(-1) * this
+
+  /**
+   * Adds these Units without resolving them.
+   * @param that The Units to add
+   * @return Units representing the abstract sum of these units and
+   *   <code>that</code>.  Note that incompatible units will not be detected
+   *   until the units are resolved.
+   */
+  def ++(that: Units): Units = (this, that) match {
+    case (SumUnits(left), SumUnits(right)) => SumUnits(left ::: right)
+    case (SumUnits(left), right) => SumUnits(left :+ right)
+    case (left, SumUnits(right)) => SumUnits(left :: right)
+    case (left, right) => SumUnits(left :: right :: Nil)
+  }
+
+  /**
+   * Subtracts the specified Units without resolving them.
+   * @param that The Units to subtract
+   * @return Units representing the abstract difference of these units and
+   *   <code>that</code>.  Note that incompatible units will not be detected
+   *   until the units are resolved.
+   */
+  def --(that: Units): Units = (this, that) match {
+    case (SumUnits(left), SumUnits(right)) => SumUnits(left ::: right.map(-_))
+    case (SumUnits(left), right) => SumUnits(left :+ -right)
+    case (left, SumUnits(right)) => SumUnits(left :: right.map(-_))
+    case (left, right) => SumUnits(left :: -right :: Nil)
+  }
+
+  /**
    * Transforms all of the scalars in these Units.
    * @param f The function to use to transform the scalars.
    * @return These Units with the scalars transformed by <code>f</code>.
@@ -396,14 +433,14 @@ trait Scalar extends Units {
    */
   def +(that: Scalar): Scalar
 
+  /** The additive inverse of this Scalar. */
+  override def unary_- : Scalar = sys.error("Not implemented")
+
   /**
    * Subtracts another Scalar from this
    * @param that The Scalar to subtract
    */
   def -(that: Scalar): Scalar = this + (-that)
-
-  /** The additive inverse of this Scalar. */
-  def unary_- : Scalar
 
   override def *(that: Units): Units = that match {
     case s: Scalar => this * s
@@ -551,7 +588,7 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
     case DecimalScalar(x) => DecimalScalar(x + decimalValue).canonicalScalar
   }
 
-  def unary_- = RationalScalar(-n, d)
+  override def unary_- = RationalScalar(-n, d)
 
   override def *(that: Scalar) = that match {
     case OneUnits => this
@@ -594,7 +631,7 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
   def +(that: Scalar) =
     DecimalScalar(value + that.decimalValue).canonicalScalar
 
-  def unary_- = DecimalScalar(-value).canonicalScalar
+  override def unary_- = DecimalScalar(-value).canonicalScalar
 
   override def *(that: Scalar) = that match {
     case OneUnits => this
@@ -620,7 +657,7 @@ case class IntegerScalar(value: BigInt) extends Scalar {
   def truncate = (this, IntegerScalar(0))
 
   def +(that: Scalar) = RationalScalar(value, 1) + that
-  def unary_- = IntegerScalar(-value).canonicalScalar
+  override def unary_- = IntegerScalar(-value).canonicalScalar
 
   override def *(that: Scalar) = that match {
     case OneUnits => this
@@ -781,11 +818,31 @@ case class ProductUnits(terms: List[Units]) extends Units {
   def reciprocal = ReciprocalUnits(this)
 }
 
+/**
+ * Represents sums of units.  This is primarily so that sum and difference
+ * expressions in the GNU Units language can be parsed without having to resolve
+ * referenced units.  We evaluate the sum as soon as some non-trivial operation
+ * (like, e.g., printing) is performed on these Units.
+ */
+case class SumUnits(terms: List[Units]) extends Units {
+  private lazy val result = terms reduce (_ + _)
+  def canonical = result canonical
+  def reciprocal = result reciprocal
+  override def root = result root
+  override def split = result split
+  override def mapScalars(f: Scalar => Scalar) = SumUnits(terms map (_ mapScalars f))
+  override def label = terms map (_.label) mkString " + "
+  override def termLabel = "(%s)" format label
+  override def *(that: Units): Units = SumUnits(terms map (_ * that))
+  override def /(that: Units): Units = SumUnits(terms map (_ / that))
+  def pow(n: Int) = result pow n
+}
+
 /** Parses units. */
-class UnitsParser extends JavaTokenParsers {
+class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
 
   /** Unit and prefix definitions. */
-  private var _defs: Map[String, SymbolDef] = Map.empty
+  val _defs: mutable.Map[String, SymbolDef] = mutable.Map()
 
   /**
    * An unresolved reference to derived units.
@@ -910,8 +967,8 @@ class UnitsParser extends JavaTokenParsers {
     molecule ~ factor ^^ { case a ~ b => a * b } |
     molecule
 
-  private lazy val plus: Parser[(Units, Units) => Units] = "+" ^^^ { _ + _ }
-  private lazy val minus: Parser[(Units, Units) => Units] = "-" ^^^ { _ - _ }
+  private lazy val plus: Parser[(Units, Units) => Units] = "+" ^^^ { _ ++ _ }
+  private lazy val minus: Parser[(Units, Units) => Units] = "-" ^^^ { _ -- _ }
   private lazy val times: Parser[(Units, Units) => Units] = "*" ^^^ { _ * _ }
   private lazy val divide: Parser[(Units, Units) => Units] = ("/" | "per") ^^^ { _ / _ }
 
@@ -920,6 +977,9 @@ class UnitsParser extends JavaTokenParsers {
     chainl1(factor, times | divide)
 
   private lazy val units: Parser[Units] = chainl1(term, plus | minus)
+
+  //----------------------------------------------------------------------------
+  // Command parser definitions
 
   private lazy val dimensionless: Parser[Units] =
     "!" ~ "dimensionless" ^^^ OneUnits
@@ -936,23 +996,94 @@ class UnitsParser extends JavaTokenParsers {
       case name ~ units => UnitDef(name, units)
     }
 
-  private lazy val any: Parser[String] = ".*".r
-  private lazy val nop: () => Unit = () => ()
-  private lazy val command: Parser[() => Unit] =
-    "!" ~ "utf8" ^^^ nop |
-    "!" ~ "endutf8" ^^^ nop |
-    "!" ~ "locale" ~ any ^^^ nop |
-    "!" ~ "endlocale" ~ any ^^^ nop |
-    "!" ~ "set" ~ any ^^^ nop |
-    "!" ~ "var" ~ any ^^^ nop |
-    "!" ~ "varnot" ~ any ^^^ nop |
-    "!" ~ "endvar" ~ any ^^^ nop |
+
+  /**
+   * Represents the current state of the interpreter
+   *
+   * @param blocks The stack of nested blocks.  Each block indicates the type of
+   *   block (so that we can verify that the corresponding "!end" statements
+   *   match correctly) and a boolean value denoting whether the block is
+   *   enabled (i.e., united definitions and other statements should be
+   *   processed).
+   * @param vars The current variable definitions (as indicated by "!set"
+   *   statements).
+   */
+  private case class State(blocks: List[(String, Boolean)] = Nil, vars: Map[String, String] = Map()) {
+
+    /**
+     * Starts a new block.
+     * @param block The type of block (corresponding calls to "end" must have a
+     *   matching block type).
+     * @param en A value indicating whether the statements within this block
+     *   should be processed.
+     */
+    def start(block: String, en: Boolean) = copy(blocks = (block, en && enabled) :: blocks)
+
+    /**
+     * Ends the current block.
+     * @param block The type of block to end (must match the corresponding call
+     *   to "start").
+     * @throws IllegalStateException if <code>block</code> does not match the
+     *   type from the corresponding call to start, or if there is no
+     *   corresponding call to start.
+     */
+    def end(block: String) = blocks match {
+      case (inBlock, _) :: outer if block == inBlock => copy(blocks = outer)
+      case (inBlock, _) :: _ =>
+        throw new IllegalStateException(
+          "End block (%s) does not match start (%s)".format(block, inBlock))
+      case Nil =>
+        throw new IllegalStateException(
+          "End block (%s) with no matching start".format(block))
+    }
+
+    /** Indicates whether statements should be processed in the current block */
+    def enabled = blocks match {
+      case Nil => true
+      case (_, en) :: _ => en
+    }
+
+    /** Sets the value of a variable. */
+    def set(key: String, value: String) =
+      if (enabled) copy(vars = vars + (key -> value)) else this
+
+    /** Prints a message */
+    def message(msg: String) { if (enabled) println(msg) }
+
+    /** Defines a new unit or prefix */
+    def define(d: SymbolDef) { if (enabled) _defs.put(d.name, d) }
+
+  }
+
+  private lazy val command: Parser[State => State] = {
+    // Helpers
+    def s(f: State => State): State => State = f
+    def action[T](f: State => T): State => State = (s: State) => { f(s); s }
+    val any: Parser[String] = ".*".r
+    val nop: State => State = (s: State) => s
+    val word: Parser[String] = "\\w+".r
+
+    "!" ~ "utf8" ^^^ s(_.start("utf8", false)) |
+    "!" ~ "endutf8" ^^^ s(_.end("utf8")) |
+    "!" ~ "locale" ~> ident ^^ {
+      case id => s(_.start("locale", locale.toString startsWith id)) } |
+    "!" ~ "endlocale" ~ any ^^^ s(_.end("locale")) |
+    "!" ~ "set" ~> ident ~ any ^^ {
+      case key ~ value => s(_.set(key, value)) } |
+    "!" ~ "var" ~> ident ~ word.+ ^^ {
+      case key ~ values => s(s => s.start("var", values intersect s.vars.get(key).toSeq nonEmpty)) } |
+    "!" ~ "varnot" ~> ident ~ word.+ ^^ {
+      case key ~ values => s(s => s.start("var", values intersect s.vars.get(key).toSeq isEmpty)) } |
+    "!" ~ "endvar" ~ any ^^^ s(_.end("var")) |
     "!" ~ "include" ~ any ^^^ nop |
     "!" ~ "unitlist" ~ any ^^^ nop |
-    "!" ~ "message" ~> any ^^ { case s => () => println(s) } |
+    "!" ~ "message" ~> any ^^ {
+      case msg => action(_.message(msg)) } |
     name ~ "(" ~ any ^^^ nop |
     name ~ "[" ~ any ^^^ nop |
-    definition ^^ { case d => () => _defs += (d.name -> d) }
+    definition ^^ {
+      case d => action(_.define(d)) }
+  }
 
   /**
    * Strips comments and processes line continuations.
@@ -1035,7 +1166,7 @@ class UnitsParser extends JavaTokenParsers {
    * <code>!include</code> directives will not be followed.
    * @param source The Source to read unit definitions from
    */
-  def load(source: Source) { lines(source) foreach exec }
+  def load(source: Source) { (State() /: lines(source))(exec) }
 
   /**
    * Loads unit definitions from the provided Source.  Note that
@@ -1044,7 +1175,7 @@ class UnitsParser extends JavaTokenParsers {
    * @param handler The catch block to use to handle parsing exceptions
    */
   def tryLoad(source: Source)(handler: PartialFunction[Throwable, Unit]) {
-    lines(source) foreach { line => try { exec(line) } catch handler }
+    (State() /: lines(source))(tryExec(handler))
   }
 
   /**
@@ -1076,7 +1207,9 @@ class UnitsParser extends JavaTokenParsers {
    *
    * Example usage: <pre>this.exec("!set INCH_UNIT canada")</pre>
    *
+   * @param state The initial state of the interpreter
    * @param cmd The command to execute
+   * @return The state of the interpreter after processing the command
    * @throws UnitsDefParsingException if the command is a unit definition that
    *   is invalid or not supported.
    * @see
@@ -1084,10 +1217,34 @@ class UnitsParser extends JavaTokenParsers {
    *     GNU Units - Database Command Syntax
    *   </a>
    */
-  def exec(cmd: String) = parseAll(command, cmd) match {
-    case Success(f, _) => f()
-    case _ => throw new UnitsDefParsingException(cmd)
+  private def exec(state: State, cmd: String): State = parseAll(command, cmd) match {
+    case Success(f, _) => f(state)
+    case e => throw new UnitsDefParsingException(cmd)
   }
+
+  /**
+   * Executes the provided GNU Units command.
+   *
+   * Example usage:
+   * <pre>
+   *   this.tryExec("!set INCH_UNIT canada") {
+   *     case e => println("ERROR: %s".format(e))
+   *   }
+   * </pre>
+   *
+   * @param handler The catch block to handle exceptions thrown by the parser
+   * @param state The initial state of the interpreter
+   * @param cmd The command to execute
+   * @return The state of the interpreter after processing the command
+   * @throws UnitsDefParsingException if the command is a unit definition that
+   *   is invalid or not supported.
+   * @see
+   *   <a href="http://www.gnu.org/software/units/manual/units.html#Database-Syntax">
+   *     GNU Units - Database Command Syntax
+   *   </a>
+   */
+  private def tryExec(handler: PartialFunction[Throwable, Unit])(state: State, cmd: String): State =
+    try { exec(state, cmd) } catch (handler andThen ((x: Unit) => state))
 
   /**
    * Converts one set of units to another.  Equivalent to

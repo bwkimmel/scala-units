@@ -29,10 +29,8 @@ definition files.
 
 Limitations:
 
-  - Only unit and prefix definitions are read.  Directives, like !include,
-  !locale, etc, are ignored.
+  - !include directives are not followed.
   - Non-linear units (i.e., function definitions) are not supported.
-  - Addition and subtraction is not supported
 
 Definitions may be added manually:
 
