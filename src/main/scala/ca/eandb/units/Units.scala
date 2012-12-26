@@ -840,11 +840,13 @@ class UnitsParser extends JavaTokenParsers {
   private lazy val name1 = """[^!+*/\|^;~#()\s_,\.\d-][^!+*/\|^;~#()\s-]*""".r
   private lazy val name2 = """^(.*[^_,\.1-9])$""".r
   private lazy val name3 = """^(.*_[\d\.,]*[1-9])$""".r
+  private lazy val name4 = """^(.*\d{2,})$""".r
  
   private lazy val name: Parser[String] =
     name1 ^? {
       case name2(s) => s
       case name3(s) => s
+      case name4(s) => s
     }
 
   private lazy val nameWithExponent1 = """[^!+*/\|^;~#()\s_,\.\d-][^!+*/\|^;~#()\s-]*[2-9]""".r
