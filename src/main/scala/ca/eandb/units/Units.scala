@@ -829,12 +829,6 @@ class UnitsParser extends JavaTokenParsers {
   //----------------------------------------------------------------------------
   // Parser definitions
 
-  private lazy val dimensionless: Parser[Units] =
-    "!" ~ "dimensionless" ^^^ { OneUnits }
-
-  private lazy val primitive: Parser[Units] =
-    "!" ^^ { case _ => PrimitiveUnits("!") }
-
   private lazy val name1 = """[^!+*/\|^;~#()\s_,\.\d-][^!+*/\|^;~#()\s-]*""".r
   private lazy val name2 = """^(.*[^_,\.1-9])$""".r
   private lazy val name3 = """^(.*_[\d\.,]*[1-9])$""".r
@@ -856,14 +850,15 @@ class UnitsParser extends JavaTokenParsers {
     }
 
   private lazy val symbol: Parser[Units] =
-    name ^? {
-      case symbol if symbol != "per" => UnitsRef(symbol)
-    }
-
-  private lazy val decimal: Parser[Units] =
-    floatingPointNumber ^^ { case value => DecimalScalar(BigDecimal(value)) }
+    name ^? { case symbol if symbol != "per" => UnitsRef(symbol) }
 
   val integer = """(-?\d+)""".r
+  private lazy val decimal: Parser[Units] =
+    floatingPointNumber ^^ {
+      case integer(value) => IntegerScalar(BigInt(value))
+      case value => DecimalScalar(BigDecimal(value))
+    }
+
   private lazy val rational: Parser[Units] =
     floatingPointNumber ~ "|" ~ floatingPointNumber ^^ {
       case integer(n) ~_~ integer(d) =>
@@ -877,14 +872,13 @@ class UnitsParser extends JavaTokenParsers {
   private lazy val scalar: Parser[Units] = rational | decimal
 
   private lazy val atom: Parser[Units] =
-    "(" ~> quotient <~ ")" |
-    "(" ~> product <~ ")" |
+    "(" ~> units <~ ")" |
     symbol |
     nameWithExponent |
     scalar
 
   private lazy val power: Parser[Units] =
-    atom ~ ("^" ~> wholeNumber).+ ^? {
+    atom ~ (("^" | "**") ~> wholeNumber).+ ^? {
       case base ~ exps if exps.tail.map(_.toInt).forall(_ >= 0) =>
         def pow(b: Int, e: Int, acc: Int = 1): Int = (b, e) match {
           case (_, 0) => acc
@@ -897,29 +891,31 @@ class UnitsParser extends JavaTokenParsers {
           case b :: rest => pow(b, eval(rest))
         }
 
-        PowerUnits(base, eval(exps.map(_.toInt)))
+        base ~ eval(exps.map(_.toInt))
     }
 
-  private lazy val product: Parser[Units] =
-    term.+ ^^ {
-      case term :: Nil => term
-      case terms => ProductUnits(terms)
-    }
+  private lazy val molecule: Parser[Units] = power | atom
 
-  private lazy val quotient: Parser[Units] =
-    product ~ ("/" | "per") ~ product ^^ { case n ~_~ d => n / d }
+  private lazy val factor: Parser[Units] =
+    molecule ~ factor ^^ { case a ~ b => a * b } |
+    molecule
 
-  private lazy val reciprocal: Parser[Units] =
-    ("/" | "per") ~> product ^^ { case u => ReciprocalUnits(u) }
+  private lazy val plus: Parser[(Units, Units) => Units] = "+" ^^^ { _ + _ }
+  private lazy val minus: Parser[(Units, Units) => Units] = "-" ^^^ { _ - _ }
+  private lazy val times: Parser[(Units, Units) => Units] = "*" ^^^ { _ * _ }
+  private lazy val divide: Parser[(Units, Units) => Units] = ("/" | "per") ^^^ { _ / _ }
 
-  private lazy val term: Parser[Units] = power | atom
-  private lazy val single: Parser[Units] = quotient | product | reciprocal
+  private lazy val term: Parser[Units] =
+    ("/" | "per") ~> term ^^ { case a => a.reciprocal } |
+    chainl1(factor, times | divide)
 
-  private lazy val units: Parser[Units] =
-    rep1sep(single, "*") ^^ {
-      case term :: Nil => term
-      case terms => ProductUnits(terms)
-    }
+  private lazy val units: Parser[Units] = chainl1(term, plus | minus)
+
+  private lazy val dimensionless: Parser[Units] =
+    "!" ~ "dimensionless" ^^^ { OneUnits }
+
+  private lazy val primitive: Parser[Units] =
+    "!" ^^ { case _ => PrimitiveUnits("!") }
 
   private lazy val rhs: Parser[Units] = dimensionless | primitive | units
 
