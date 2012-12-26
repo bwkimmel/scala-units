@@ -531,11 +531,11 @@ class UnitsParsingException(units: String)
   extends IllegalArgumentException("Unable to parse units: %s".format(units))
 
 /**
- * Indicates a parsing error ocurred while attempting to parse a unit definition.
- * @param defs The string being parsed.
+ * Indicates a parsing error ocurred while attempting to parse a command.
+ * @param cmd The string being parsed.
  */
-class UnitsDefParsingException(defs: String)
-  extends IllegalArgumentException("Unable to parse unit definition: %s".format(defs))
+class CommandParsingException(cmd: String)
+  extends IllegalArgumentException("Unable to parse command: %s".format(cmd))
 
 /**
  * Indicates the presence of an undefined unit while attempting to resolve
@@ -1187,7 +1187,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    * @param spec The unit definition expression.  Most valid GNU unit definition
    *   expressions are supported.  Non-linear expressions (function calls) are
    *   not supported.  Addition and subtraction are not supported.
-   * @throws UnitsDefParsingException if the provided unit definition expression
+   * @throws CommandParsingException if the provided unit definition expression
    *   is invalid or not supported.
    * @see
    *   <a href="http://www.gnu.org/software/units/manual/units.html#Unit-Definitions">
@@ -1197,7 +1197,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
   def define(spec: String) {
     val result = parseAll(definition, spec) match {
       case Success(sdef, _) => sdef
-      case _ => throw new UnitsDefParsingException(spec)
+      case _ => throw new CommandParsingException(spec)
     }
     _defs += (result.name -> result)
   }
@@ -1210,7 +1210,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    * @param state The initial state of the interpreter
    * @param cmd The command to execute
    * @return The state of the interpreter after processing the command
-   * @throws UnitsDefParsingException if the command is a unit definition that
+   * @throws CommandParsingException if the command is a unit definition that
    *   is invalid or not supported.
    * @see
    *   <a href="http://www.gnu.org/software/units/manual/units.html#Database-Syntax">
@@ -1219,7 +1219,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    */
   private def exec(state: State, cmd: String): State = parseAll(command, cmd) match {
     case Success(f, _) => f(state)
-    case e => throw new UnitsDefParsingException(cmd)
+    case e => throw new CommandParsingException(cmd)
   }
 
   /**
@@ -1236,7 +1236,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    * @param state The initial state of the interpreter
    * @param cmd The command to execute
    * @return The state of the interpreter after processing the command
-   * @throws UnitsDefParsingException if the command is a unit definition that
+   * @throws CommandParsingException if the command is a unit definition that
    *   is invalid or not supported.
    * @see
    *   <a href="http://www.gnu.org/software/units/manual/units.html#Database-Syntax">
