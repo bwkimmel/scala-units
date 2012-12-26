@@ -936,6 +936,24 @@ class UnitsParser extends JavaTokenParsers {
       case name ~ units => UnitDef(name, units)
     }
 
+  private lazy val any: Parser[String] = ".*".r
+  private lazy val nop: () => Unit = () => ()
+  private lazy val command: Parser[() => Unit] =
+    "!" ~ "utf8" ^^^ nop |
+    "!" ~ "endutf8" ^^^ nop |
+    "!" ~ "locale" ~ any ^^^ nop |
+    "!" ~ "endlocale" ~ any ^^^ nop |
+    "!" ~ "set" ~ any ^^^ nop |
+    "!" ~ "var" ~ any ^^^ nop |
+    "!" ~ "varnot" ~ any ^^^ nop |
+    "!" ~ "endvar" ~ any ^^^ nop |
+    "!" ~ "include" ~ any ^^^ nop |
+    "!" ~ "unitlist" ~ any ^^^ nop |
+    "!" ~ "message" ~> any ^^ { case s => () => println(s) } |
+    name ~ "(" ~ any ^^^ nop |
+    name ~ "[" ~ any ^^^ nop |
+    definition ^^ { case d => () => _defs += (d.name -> d) }
+
   /**
    * Strips comments and processes line continuations.
    * @param source The Source to read from
@@ -1017,12 +1035,16 @@ class UnitsParser extends JavaTokenParsers {
    * <code>!include</code> directives will not be followed.
    * @param source The Source to read unit definitions from
    */
-  def load(source: Source) {
-    val seed: Map[String, SymbolDef] = Map.empty
-    _defs ++= lines(source).map(parseAll(definition, _)).foldLeft(seed) {
-      case (defs, Success(sdef, _)) => defs + (sdef.name -> sdef)
-      case (defs, _) => defs
-    }
+  def load(source: Source) { lines(source) foreach exec }
+
+  /**
+   * Loads unit definitions from the provided Source.  Note that
+   * <code>!include</code> directives will not be followed.
+   * @param source The Source to read unit definitions from
+   * @param handler The catch block to use to handle parsing exceptions
+   */
+  def tryLoad(source: Source)(handler: PartialFunction[Throwable, Unit]) {
+    lines(source) foreach { line => try { exec(line) } catch handler }
   }
 
   /**
@@ -1047,6 +1069,24 @@ class UnitsParser extends JavaTokenParsers {
       case _ => throw new UnitsDefParsingException(spec)
     }
     _defs += (result.name -> result)
+  }
+
+  /**
+   * Executes the provided GNU Units command.
+   *
+   * Example usage: <pre>this.exec("!set INCH_UNIT canada")</pre>
+   *
+   * @param cmd The command to execute
+   * @throws UnitsDefParsingException if the command is a unit definition that
+   *   is invalid or not supported.
+   * @see
+   *   <a href="http://www.gnu.org/software/units/manual/units.html#Database-Syntax">
+   *     GNU Units - Database Command Syntax
+   *   </a>
+   */
+  def exec(cmd: String) = parseAll(command, cmd) match {
+    case Success(f, _) => f()
+    case _ => throw new UnitsDefParsingException(cmd)
   }
 
   /**
