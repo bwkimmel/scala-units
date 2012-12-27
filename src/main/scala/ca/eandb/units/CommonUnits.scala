@@ -28,7 +28,7 @@ package ca.eandb.units
 /**
  * Variable definitions for common units.  This class is intended to be
  * imported to provide convenient reference to common units.  All fields are
- * lazy so that units which have not beend defined in the underlying
+ * lazy so that units which have not been defined in the underlying
  * UnitsParser will cause problems if they are not referenced.
  *
  * Example usage:
