@@ -1124,7 +1124,6 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    * units.
    * @param expr The units expression.  Most valid GNU unit expressions are
    *   supported.  Non-linear expressions (function calls) are not supported.
-   *   Addition and subtraction are not supported.
    * @throws UnitsParsingException if the provided unit expression is invalid or
    *   not supported.
    * @see
@@ -1151,7 +1150,6 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    *
    * @param expr The units expression.  Most valid GNU unit expressions are
    *   supported.  Non-linear expressions (function calls) are not supported.
-   *   Addition and subtraction are not supported.
    * @throws UnitsParsingException if the provided unit expression is invalid or
    *   not supported.
    * @see
@@ -1186,7 +1184,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    *
    * @param spec The unit definition expression.  Most valid GNU unit definition
    *   expressions are supported.  Non-linear expressions (function calls) are
-   *   not supported.  Addition and subtraction are not supported.
+   *   not supported.
    * @throws CommandParsingException if the provided unit definition expression
    *   is invalid or not supported.
    * @see
