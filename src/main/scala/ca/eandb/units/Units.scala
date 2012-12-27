@@ -173,10 +173,10 @@ trait Units extends Ordered[Units] {
    *
    * Examples:
    * <pre>
-   *   90 (seconds) inOneOf (hours, minutes, seconds)
+   *   90 (seconds) inOneOf Seq(hours, minutes, seconds)
    *   => 1.5 minutes
    *
-   *   2100 (MHz) inOneOf (GHz, MHz, kHz, Hz)
+   *   2100 (MHz) inOneOf Seq(GHz, MHz, kHz, Hz)
    *   => 2.1 GHz
    * </pre>
    *
@@ -185,7 +185,7 @@ trait Units extends Ordered[Units] {
    * @throws IncompatibleUnitsException if these Units cannot be converted to
    *   one of the provided sequence of Units.
    */
-  def inOneOf(units: Units*): Units = {
+  def inOneOf(units: Seq[Units]): Units = {
     def scale(u: Units) = u.split._1
     def scan(units: Seq[Units]): Units = units match {
       case Seq(u) => u
@@ -194,6 +194,31 @@ trait Units extends Ordered[Units] {
     }
     scan(units.view.map(this in _))
   }
+
+  /**
+   * Converts these Units to one of the provided sequence of Units.  The Units
+   * that are selected will be the first in the sequence with a scalar value of
+   * at least one.  If the scalar value in all provided Units is less than one,
+   * the return value will be expressed in the last units.
+   *
+   * Examples:
+   * <pre>
+   *   90 (seconds) inOneOf (hours, minutes, seconds)
+   *   => 1.5 minutes
+   *
+   *   2100 (MHz) inOneOf (GHz, MHz, kHz, Hz)
+   *   => 2.1 GHz
+   * </pre>
+   *
+   * @param first The first of the sequence of Units to try to convert these
+   *   units to.
+   * @param rest The rest of the sequence of Units to try to convert these units
+   *   to.
+   * @throws IncompatibleUnitsException if these Units cannot be converted to
+   *   one of the provided sequence of Units.
+   */
+
+  def inOneOf(first: Units, rest: Units*): Units = inOneOf(first +: rest)
 
   /**
    * Multiplies these Units with another.
