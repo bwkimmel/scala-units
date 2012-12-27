@@ -39,7 +39,7 @@ case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int])
   def label = canonicalScalar label
 
   /** Expresses this Scalar in canonical form. */
-  def canonicalScalar: Scalar =
+  lazy val canonicalScalar: Scalar =
     if (decimals isEmpty)
       rational.canonicalScalar
     else rational match {
