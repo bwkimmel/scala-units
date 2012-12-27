@@ -79,8 +79,9 @@ case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int])
     case OneUnits => this
     case r : RationalScalar => 
       ExactScalar(rational * r, decimals)
-    case DecimalScalar(x) =>
-      ExactScalar(rational, combine(_ + _)(decimals, Map() + (x -> 1)))
+    case _ =>
+      val ds = Map() + (that.decimalValue -> 1)
+      ExactScalar(rational, combine(_ + _)(decimals, ds))
   }
 
   /**

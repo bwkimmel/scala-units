@@ -39,8 +39,8 @@ case class IntegerScalar(value: BigInt) extends RationalScalar(value, 1) {
     case OneUnits => this
     case IntegerScalar(n) => IntegerScalar(value * n).canonicalScalar
     case RationalScalar(n, d) => RationalScalar(value * n, d).canonicalScalar
-    case DecimalScalar(x) => ExactScalar(this, x -> 1)
     case e: ExactScalar => e * this
+    case _ => ExactScalar(this, that.decimalValue -> 1)
   }
 
   override def pow(e: Int): RationalScalar =
