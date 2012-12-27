@@ -25,7 +25,14 @@
  */
 package ca.eandb.units
 
-/** Represents dimensionless quantities */
+/**
+ * Represents products/quotients of scalar quantities (integer, rational,
+ * decimals) without loss of precision.
+ *
+ * @param rational The rational factor of the scalar quantity
+ * @param decimals A Map of the decimal factors of the scalar quantities and
+ *   their corresponding exponents.
+ */
 case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int]) extends Scalar {
   require(decimals forall { case (_, e) => e != 0 }, "exponents must be non-zero")
 
