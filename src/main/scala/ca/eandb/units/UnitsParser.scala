@@ -126,7 +126,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
         val sign = denom.signum
         RationalScalar(sign * numer, sign * denom)
       case n ~_~ d =>
-        DecimalScalar(BigDecimal(n) / BigDecimal(d))
+        DecimalScalar(BigDecimal(n)) / DecimalScalar(BigDecimal(d))
     }
 
   private lazy val scalar: Parser[Units] = rational | decimal
