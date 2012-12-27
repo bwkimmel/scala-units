@@ -45,13 +45,15 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
 
   override def *(that: Scalar) = that match {
     case OneUnits => this
+    case DecimalScalar(other) => ExactScalar(OneUnits, value -> 1, other -> 1)
+    case e: ExactScalar => e * this
+    case r: RationalScalar => ExactScalar(r, value -> 1)
     case _ => DecimalScalar(value * that.decimalValue).canonicalScalar
   }
 
-  override def pow(e: Int): Scalar =
-    DecimalScalar(value pow e).canonicalScalar
+  override def pow(e: Int): Scalar = ExactScalar(OneUnits, value -> e)
+  override def reciprocal = ExactScalar(OneUnits, value -> -1)
 
-  override def reciprocal = DecimalScalar(BigDecimal(1) / value)
   def label = value.toString
 
   override def isZero = (value == 0)

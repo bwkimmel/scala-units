@@ -26,32 +26,32 @@
 package ca.eandb.units
 
 /** An integer-valued Scalar. */
-case class IntegerScalar(value: BigInt) extends Scalar {
-  def canonicalScalar: IntegerScalar = if (value == 1) OneUnits else this
+case class IntegerScalar(value: BigInt) extends RationalScalar(value, 1) {
+  override def canonicalScalar: IntegerScalar = if (value == 1) OneUnits else this
   override def reciprocal =
     RationalScalar(value.signum, value.abs).canonicalScalar
 
-  def truncate = (this, IntegerScalar(0))
+  override def truncate = (this, IntegerScalar(0))
 
-  def +(that: Scalar) = RationalScalar(value, 1) + that
   override def unary_- = IntegerScalar(-value).canonicalScalar
 
   override def *(that: Scalar) = that match {
     case OneUnits => this
     case IntegerScalar(n) => IntegerScalar(value * n).canonicalScalar
     case RationalScalar(n, d) => RationalScalar(value * n, d).canonicalScalar
-    case DecimalScalar(x) => DecimalScalar(decimalValue * x).canonicalScalar
+    case DecimalScalar(x) => ExactScalar(this, x -> 1)
+    case e: ExactScalar => e * this
   }
 
-  override def pow(e: Int): Scalar =
+  override def pow(e: Int): RationalScalar =
     if (e >= 0)
       IntegerScalar(value pow e).canonicalScalar
     else
       reciprocal pow -e
 
-  def label = value.toString
+  override def label = value.toString
 
   override def isZero = (value == 0)
-  def decimalValue = BigDecimal(value)
+  override def decimalValue = BigDecimal(value)
 }
 

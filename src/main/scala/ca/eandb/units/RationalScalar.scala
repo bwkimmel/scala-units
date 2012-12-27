@@ -30,10 +30,10 @@ package ca.eandb.units
  * @param n The numerator
  * @param d The denominator (must be positive)
  */
-case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
+class RationalScalar(val n: BigInt, val d: BigInt) extends Scalar {
   require(d > 0, "denominator must be positive")
 
-  def canonicalScalar = if (n == d) OneUnits else {
+  def canonicalScalar: RationalScalar = if (n == d) OneUnits else {
     val r = n gcd d
 
     if (r == d)
@@ -59,20 +59,24 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
 
   override def unary_- = RationalScalar(-n, d)
 
-  override def *(that: Scalar) = that match {
+  def *(that: RationalScalar): RationalScalar = that match {
     case OneUnits => this
     case IntegerScalar(n2) => RationalScalar(n * n2, d).canonicalScalar
     case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonicalScalar
-    case DecimalScalar(x) => DecimalScalar(x * decimalValue).canonicalScalar
   }
 
-  override def pow(e: Int): Scalar =
+  override def *(that: Scalar) = that match {
+    case DecimalScalar(x) => ExactScalar(this, x -> 1)
+    case _: RationalScalar => this * that
+  }
+
+  override def pow(e: Int): RationalScalar =
     if (e >= 0)
       RationalScalar(n pow e, d pow e).canonicalScalar
     else
       reciprocal pow -e
 
-  override def reciprocal =
+  override def reciprocal: RationalScalar =
     if (n > 0)
       RationalScalar(d, n).canonicalScalar
     else
@@ -84,3 +88,13 @@ case class RationalScalar(n: BigInt, d: BigInt) extends Scalar {
   def decimalValue = BigDecimal(n) / BigDecimal(d)
 }
 
+object RationalScalar {
+
+  def apply(n: BigInt, d: BigInt): RationalScalar = new RationalScalar(n, d)
+
+  def unapply(s: Scalar): Option[(BigInt, BigInt)] = s match {
+    case r: RationalScalar => Some(r.n -> r.d)
+    case _ => None
+  }
+
+}
