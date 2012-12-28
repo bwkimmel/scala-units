@@ -55,3 +55,7 @@ class CommandParsingException(cmd: String)
 class UndefinedUnitsException(symbol: String)
   extends IllegalArgumentException("Cannot resolve symbol: %s".format(symbol))
 
+/** Indicates that the units could not be resolved. */
+class UnitsResolutionException(msg: String)
+  extends IllegalArgumentException(msg)
+
