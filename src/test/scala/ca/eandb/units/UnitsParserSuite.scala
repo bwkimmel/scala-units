@@ -294,12 +294,12 @@ class UnitsParserSuite extends FunSuite with BeforeAndAfter {
   }
 
   List("sin", "cos", "tan") foreach { fun =>
-    test("[5.4] %s accepts dimensionless argument or an argument with dimensions of angle"
-        .format(fun)) {
-
-      u.define("radian !dimensionless")
-
+    test("[5.4] %s accepts dimensionless argument".format(fun)) {
       u("%s(1)".format(fun)).canonical
+    }
+
+    test("[5.4] %s accepts argument with dimensions of angle".format(fun)) {
+      u.define("radian !dimensionless")
       u("%s(1 radian)".format(fun)).canonical
     }
 
