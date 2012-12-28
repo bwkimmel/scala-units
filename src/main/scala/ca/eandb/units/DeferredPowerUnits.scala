@@ -60,7 +60,7 @@ case class DeferredPowerUnits(base: Units, exp: Units) extends Units {
       CanonicalUnits(scale, dims map { case (b, e) => b -> (e * n / d).toInt })
 
     case (b, e) =>
-      val e0 = b.asScalar.decimalValue.toDouble
+      val e0 = e.asScalar.decimalValue.toDouble
       val b0 = b.asScalarOption match {
         case Some(x) => x.decimalValue.toDouble
         case None =>
