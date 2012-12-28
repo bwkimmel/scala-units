@@ -131,7 +131,13 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
 
   private lazy val scalar: Parser[Units] = rational | decimal
 
+  private lazy val function: Parser[Units] =
+    ScalarFunction.builtIns
+      .map { case f => f.name ~ "(" ~> units <~ ")" ^^ f }
+      .reduce { _ | _ }
+
   private lazy val atom: Parser[Units] =
+    function |
     "(" ~> units <~ ")" |
     symbol |
     nameWithExponent |

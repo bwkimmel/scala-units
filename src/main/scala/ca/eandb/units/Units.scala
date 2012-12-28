@@ -34,6 +34,15 @@ trait Units extends Ordered[Units] {
   /** Determines if these Units are dimensionless (scalar). */
   def isScalar: Boolean = false
 
+  /** Gets these Units as a Scalar value, if they are Scalar. */
+  def asScalarOption: Option[Scalar] = {
+    val u = canonical
+    if (u.isScalar) Some(u.scale) else None
+  }
+
+  /** Gets these Units as a Scalar value. */
+  def asScalar = asScalarOption.get
+
   /** The dimensions of these Units (i.e., powers of the primitive units). */
   def dimensions: Map[PrimitiveUnits, Int] = canonical.dimensions
 
