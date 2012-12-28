@@ -40,7 +40,13 @@ case class DeferredPowerUnits(base: Units, exp: Units) extends Units {
 
   override def termLabel = "(%s^%s)".format(base.termLabel, exp.termLabel)
 
-  def canonical = (base, exp.asScalar.canonicalScalar) match {
+  private def resolveExponent = exp.asScalarOption match {
+    case Some(x) => x.canonicalScalar
+    case None =>
+      throw new UnitsResolutionException("Non-scalar exponent: %s".format(label))
+  }
+
+  def canonical = (base, resolveExponent) match {
     case (_, x) if x isZero => OneUnits.canonical
     case (b, OneUnits) => b.canonical
     case (b, IntegerScalar(n)) => b pow n.toInt canonical
@@ -60,7 +66,7 @@ case class DeferredPowerUnits(base: Units, exp: Units) extends Units {
       CanonicalUnits(scale, dims map { case (b, e) => b -> (e * n / d).toInt })
 
     case (b, e) =>
-      val e0 = e.asScalar.decimalValue.toDouble
+      val e0 = e.decimalValue.toDouble
       val b0 = b.asScalarOption match {
         case Some(x) => x.decimalValue.toDouble
         case None =>
