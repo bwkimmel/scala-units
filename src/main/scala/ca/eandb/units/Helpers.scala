@@ -44,6 +44,7 @@ object Helpers {
     def withMathContext(mc: MathContext): Units
     def withPrecision(precision: Int): Units
     def withScale(scale: Int): Units
+    def withCanonicalScalars: Units
   }
 
   // Implicit application of HelperMethods
@@ -53,6 +54,7 @@ object Helpers {
     def withMathContext(mc: MathContext): Units = u mapScalars Helpers.withMathContext(mc)
     def withPrecision(precision: Int): Units = u mapScalars Helpers.withPrecision(precision)
     def withScale(scale: Int): Units = u mapScalars Helpers.withScale(scale)
+    def withCanonicalScalars: Units = u mapScalars (_.canonicalScalar)
   }
 
   // Scalar transformation methods
