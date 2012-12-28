@@ -294,6 +294,10 @@ class CommonUnits(units: UnitsParser) {
   lazy val lightyear = units("lightyear")
   lazy val ly = units("ly")
 
+  lazy val parsecs = units("parsecs")
+  lazy val parsec = units("parsec")
+  lazy val pc = units("pc")
+
   //----------------------------------------------------------------
   // Some common compound units.
   //
