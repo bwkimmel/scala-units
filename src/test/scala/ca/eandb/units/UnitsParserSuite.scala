@@ -45,7 +45,8 @@ class UnitsParserSuite extends FunSuite with BeforeAndAfter {
 
   test("[9.2] can define new dimensionless units") {
     u.define("radians !dimensionless")
-    assert(u("radians").canonical === CanonicalUnits(OneUnits))
+    assert(u("radians").canonical ===
+      CanonicalUnits(OneUnits, PrimitiveUnits("radians", dimensionless = true) -> 1))
   }
 
   test("[9.2] a unit that ends with a '-' character is a prefix") {
@@ -322,7 +323,7 @@ class UnitsParserSuite extends FunSuite with BeforeAndAfter {
     test("[5.4] %s returns arguments with dimensions of angle".format(fun)) {
       u.define("radian !dimensionless")
 
-      val dims = Map() + (PrimitiveUnits("radian") -> 1)
+      val dims = Map() + (PrimitiveUnits("radian", dimensionless = true) -> 1)
       assert(u("%s(0)".format(fun)).dimensions === dims)
     }
   }

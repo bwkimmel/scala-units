@@ -43,6 +43,9 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
 
   override def mapScalars(f: Scalar => Scalar) = CanonicalUnits(f(scale), dimensions)
 
+  def withoutDimensionless =
+    CanonicalUnits(scale, dimensions.filterKeys(!_.dimensionless))
+
   /** Expresses these Units as products of powers of primitive Units. */
   def expand: Units = {
     val dims = dimensions.toList map {

@@ -29,7 +29,7 @@ package ca.eandb.units
  * Represents fundamental units (i.e., units which cannot be further reduced).
  * @param symbol The symbol for these Units
  */
-case class PrimitiveUnits(symbol: String) extends Units {
+case class PrimitiveUnits(symbol: String, dimensionless: Boolean = false) extends Units {
   def canonical = CanonicalUnits(OneUnits, Map(this -> 1))
   def label = symbol
   def reciprocal = ReciprocalUnits(this)

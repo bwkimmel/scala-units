@@ -172,7 +172,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
   // Command parser definitions
 
   private lazy val dimensionless: Parser[Units] =
-    "!" ~ "dimensionless" ^^^ OneUnits
+    "!" ~ "dimensionless" ^^^ PrimitiveUnits("!", dimensionless = true)
 
   private lazy val primitive: Parser[Units] =
     "!" ^^^ PrimitiveUnits("!")
@@ -182,7 +182,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
   private lazy val definition: Parser[SymbolDef] =
     name ~ "-" ~ rhs ^^ { case name ~_~ units => PrefixDef("%s-" format name, units) } |
     name ~ rhs ^^ {
-      case name ~ PrimitiveUnits(_) => UnitDef(name, PrimitiveUnits(name))
+      case name ~ PrimitiveUnits(_, d) => UnitDef(name, PrimitiveUnits(name, d))
       case name ~ units => UnitDef(name, units)
     }
 
