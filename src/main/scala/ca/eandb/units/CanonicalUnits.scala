@@ -77,3 +77,10 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
   def label = expand.label
 }
 
+object CanonicalUnits {
+
+  def apply(scale: Scalar, dims: (PrimitiveUnits, Int)*): CanonicalUnits =
+    CanonicalUnits(scale, Map() ++ dims)
+
+}
+
