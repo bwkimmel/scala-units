@@ -44,6 +44,13 @@ class RationalScalar(val n: BigInt, val d: BigInt) extends Scalar {
       RationalScalar(n / r, d / r)
   }
 
+  override def equals(that: Any): Boolean = that match {
+    case RationalScalar(numer, denom) => n == numer && d == denom
+    case _ => false
+  }
+
+  override def hashCode: Int = n.hashCode ^ d.hashCode
+
   def truncate = (n /% d) match {
     case (q, r) =>
       (IntegerScalar(q).canonicalScalar,
