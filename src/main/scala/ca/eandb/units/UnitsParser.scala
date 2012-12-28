@@ -145,27 +145,11 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
     nameWithExponent |
     scalar
 
-  private lazy val integralPower: Parser[Units] =
-    atom ~ (("^" | "**") ~> wholeNumber).+ ^? {
-      case base ~ exps if exps.tail.map(_.toInt).forall(_ >= 0) =>
-        def pow(b: Int, e: Int, acc: Int = 1): Int = (b, e) match {
-          case (_, 0) => acc
-          case (0, _) => 0
-          case _ => pow(b, e - 1, b * acc)
-        }
-
-        def eval(exps: List[Int]): Int = exps match {
-          case Nil => 1
-          case b :: rest => pow(b, eval(rest))
-        }
-
-        base ~ eval(exps.map(_.toInt))
-    }
-
-  private lazy val deferredPower: Parser[Units] =
-    atom ~ ("^" | "**") ~ molecule ^^ { case b ~_~ e => DeferredPowerUnits(b, e) } 
-
-  private lazy val power: Parser[Units] = integralPower | deferredPower
+  private lazy val power: Parser[Units] =
+    atom ~ ("^" | "**") ~ molecule ^^ {
+      case b ~_~ IntegerScalar(e) => PowerUnits(b, e.toInt)
+      case b ~_~ e => DeferredPowerUnits(b, e)
+    } 
 
   private lazy val molecule: Parser[Units] = power | atom
 
