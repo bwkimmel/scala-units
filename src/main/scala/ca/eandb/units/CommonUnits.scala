@@ -287,6 +287,12 @@ class CommonUnits(units: UnitsParser) {
     light * t
   }
 
+  // Need separate definitions for lightyears because a light year
+  // is based on the Julian year (365.25 days), whereas in GNU units
+  // a "year" is the tropical year (365.242198781 days).
+  lazy val lightyears = units("lightyears")
+  lazy val lightyear = units("lightyear")
+  lazy val ly = units("ly")
 
   //----------------------------------------------------------------
   // Some common compound units.
