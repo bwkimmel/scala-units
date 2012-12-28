@@ -134,8 +134,8 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
   private lazy val function: Parser[Units] =
     "sqrt" ~ "(" ~> units <~ ")" ^^ { new DeferredPowerUnits.Sqrt(_) } |
     "cuberoot" ~ "(" ~> units <~ ")" ^^ { new DeferredPowerUnits.CubeRoot(_) } |
-    ScalarFunction.builtIns
-      .map { case f => f.name ~ "(" ~> units <~ ")" ^^ f }
+    UnitsFunction.builtIns
+      .map { case f => f.name ~ "(" ~> units <~ ")" ^^ f.bind }
       .reduce { _ | _ }
 
   private lazy val atom: Parser[Units] =
