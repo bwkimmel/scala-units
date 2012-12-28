@@ -67,7 +67,7 @@ class RationalScalar(val n: BigInt, val d: BigInt) extends Scalar {
 
   override def *(that: Scalar) = that match {
     case ExactScalar(r, ds) => ExactScalar(this * r, ds)
-    case _: RationalScalar => this * that
+    case r: RationalScalar => this * r
     case _ => ExactScalar(this, that.decimalValue -> 1)
   }
 
