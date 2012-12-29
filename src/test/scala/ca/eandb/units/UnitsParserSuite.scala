@@ -30,6 +30,12 @@ import org.scalatest.BeforeAndAfter
 
 import Helpers._
 
+/**
+ * Test suite for the units parser.  Section numbers in the test names refer to
+ * the sections of the
+ * <a href="http://www.gnu.org/software/units/manual/units.html">
+ *   GNU Units manual</a>
+ */
 class UnitsParserSuite extends FunSuite with BeforeAndAfter {
 
   var u: UnitsParser = _
