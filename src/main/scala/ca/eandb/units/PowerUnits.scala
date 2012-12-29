@@ -44,7 +44,7 @@ case class PowerUnits(base: Units, exp: Int) extends Units {
   }
 
   def reciprocal = ReciprocalUnits(this)
-  def pow(n: Int): Units = base match {
+  protected[units] def pow(n: Int): Units = base match {
     case PowerUnits(b, e) => PowerUnits(b, e * exp * n)
     case _ => PowerUnits(base, exp * n)
   }

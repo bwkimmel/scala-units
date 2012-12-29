@@ -60,8 +60,8 @@ sealed abstract class UnitsFunction(val name: String, f: Double => Double) {
     def label = "%s(%s)".format(name, arg.label)
     lazy val canonical = apply(arg).canonical
 
+    override protected[units] def pow(n: Int) = PowerUnits(this, n)
     override def reciprocal = ReciprocalUnits(this)
-    override def pow(n: Int) = PowerUnits(this, n)
     override def split = canonical.split
     override def root = canonical.root
     override def isZero = canonical.isZero

@@ -36,7 +36,7 @@ trait Scalar extends Units {
 
   override def split = (this, OneUnits)
   override def reciprocal: Scalar
-  override def pow(n: Int): Scalar
+  override protected[units] def pow(n: Int): Scalar
 
   /**
    * Raises this Scalar to the specified power.

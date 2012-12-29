@@ -261,7 +261,7 @@ trait Units extends Ordered[Units] {
    * Raises these Units to the specified power.
    * @param n The exponent (must be more than zero) 
    */
-  def pow(n: Int): Units
+  protected[units] def pow(n: Int): Units
 
   /**
    * Raises these Units to the specified power.

@@ -78,7 +78,7 @@ class RationalScalar(val n: BigInt, val d: BigInt) extends Scalar {
     case _ => ExactScalar(this, that.decimalValue -> 1)
   }
 
-  override def pow(e: Int): RationalScalar =
+  override protected[units] def pow(e: Int): RationalScalar =
     RationalScalar(n pow e, d pow e).canonicalScalar
 
   override def reciprocal: RationalScalar =

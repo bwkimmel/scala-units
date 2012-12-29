@@ -53,7 +53,7 @@ case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int])
   override def reciprocal: Scalar =
     ExactScalar(rational.reciprocal, decimals.mapValues(-_))
 
-  override def pow(e: Int): Scalar =
+  override protected[units] def pow(e: Int): Scalar =
     ExactScalar(rational pow e, decimals.mapValues(_ * e))
 
   /** Splits this Scalar into integral and fractional parts. */

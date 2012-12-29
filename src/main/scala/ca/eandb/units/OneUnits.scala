@@ -32,9 +32,9 @@ case object OneUnits extends IntegerScalar(1) {
   override def unary_- = IntegerScalar(-1)
   override def *(that: Scalar) = that
   override def /(that: Scalar) = that.reciprocal
-  override def pow(n: Int) = this
-  override def reciprocal = this
   override def label = "1"
   override def isZero = false
+  override def reciprocal = this
+  override protected[units] def pow(n: Int) = this
 }
 

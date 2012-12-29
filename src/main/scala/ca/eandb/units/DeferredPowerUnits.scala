@@ -78,7 +78,7 @@ case class DeferredPowerUnits(base: Units, exp: Units) extends Units {
   }
 
   def reciprocal = ReciprocalUnits(this)
-  def pow(n: Int): Units = base match {
+  protected[units] def pow(n: Int): Units = base match {
     case PowerUnits(b, e) => DeferredPowerUnits(b, e * exp * n)
     case DeferredPowerUnits(b, e) => DeferredPowerUnits(b, e * exp * n)
     case _ => DeferredPowerUnits(base, exp * n)

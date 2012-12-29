@@ -51,7 +51,9 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
     case _ => DecimalScalar(value * that.decimalValue).canonicalScalar
   }
 
-  override def pow(e: Int): Scalar = ExactScalar(OneUnits, value -> e)
+  override protected[units] def pow(e: Int): Scalar =
+    ExactScalar(OneUnits, value -> e)
+
   override def reciprocal = ExactScalar(OneUnits, value -> -1)
 
   def label = value.toString

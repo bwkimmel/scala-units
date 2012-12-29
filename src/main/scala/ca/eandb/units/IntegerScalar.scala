@@ -43,7 +43,7 @@ case class IntegerScalar(value: BigInt) extends RationalScalar(value, 1) {
     case _ => ExactScalar(this, that.decimalValue -> 1)
   }
 
-  override def pow(e: Int): RationalScalar =
+  override protected[units] def pow(e: Int): RationalScalar =
     IntegerScalar(value pow e).canonicalScalar
 
   override def label = value.toString

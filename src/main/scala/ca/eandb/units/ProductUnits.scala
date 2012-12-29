@@ -87,7 +87,7 @@ case class ProductUnits(terms: List[Units]) extends Units {
     case _ => ProductUnits(terms :+ that)
   }
 
-  def pow(n: Int) = PowerUnits(this, n)
+  protected[units] def pow(n: Int) = PowerUnits(this, n)
   def reciprocal = ReciprocalUnits(this)
 }
 

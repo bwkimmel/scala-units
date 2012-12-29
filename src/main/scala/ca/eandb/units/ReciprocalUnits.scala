@@ -40,6 +40,6 @@ case class ReciprocalUnits(u: Units) extends Units {
   }
   override def mapScalars(f: Scalar => Scalar) = ReciprocalUnits(u mapScalars f)
   def reciprocal = u
-  def pow(n: Int) = ReciprocalUnits(u pow n)
+  protected[units] def pow(n: Int) = ReciprocalUnits(u pow n)
 }
 

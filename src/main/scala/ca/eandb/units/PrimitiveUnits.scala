@@ -33,6 +33,6 @@ case class PrimitiveUnits(symbol: String, dimensionless: Boolean = false) extend
   def canonical = CanonicalUnits(OneUnits, Map(this -> 1))
   def label = symbol
   def reciprocal = ReciprocalUnits(this)
-  def pow(n: Int) = PowerUnits(this, n)
+  protected[units] def pow(n: Int) = PowerUnits(this, n)
 }
 

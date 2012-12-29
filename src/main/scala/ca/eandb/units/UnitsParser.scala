@@ -81,7 +81,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
     }
 
     def reciprocal = ReciprocalUnits(this)
-    def pow(n: Int) = PowerUnits(this, n)
+    protected[units] def pow(n: Int) = PowerUnits(this, n)
   }
 
   //----------------------------------------------------------------------------

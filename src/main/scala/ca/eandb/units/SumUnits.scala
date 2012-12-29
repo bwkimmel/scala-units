@@ -42,6 +42,6 @@ case class SumUnits(terms: List[Units]) extends Units {
   override def termLabel = "(%s)" format label
   override def *(that: Units): Units = SumUnits(terms map (_ * that))
   override def /(that: Units): Units = SumUnits(terms map (_ / that))
-  def pow(n: Int) = result pow n
+  protected[units] def pow(n: Int) = result pow n
 }
 
