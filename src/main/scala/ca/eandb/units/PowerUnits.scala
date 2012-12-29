@@ -40,7 +40,7 @@ case class PowerUnits(base: Units, exp: Int) extends Units {
     case (_, 0) => OneUnits.canonical
     case (b, 1) => b
     case (CanonicalUnits(scale, dims), e) =>
-      CanonicalUnits(scale pow e, dims.mapValues(_ * e))
+      CanonicalUnits(scale ~ e, dims.mapValues(_ * e))
   }
 
   def reciprocal = ReciprocalUnits(this)

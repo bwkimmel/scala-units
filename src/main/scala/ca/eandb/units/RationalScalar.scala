@@ -79,10 +79,7 @@ class RationalScalar(val n: BigInt, val d: BigInt) extends Scalar {
   }
 
   override def pow(e: Int): RationalScalar =
-    if (e >= 0)
-      RationalScalar(n pow e, d pow e).canonicalScalar
-    else
-      reciprocal pow -e
+    RationalScalar(n pow e, d pow e).canonicalScalar
 
   override def reciprocal: RationalScalar =
     if (n > 0)

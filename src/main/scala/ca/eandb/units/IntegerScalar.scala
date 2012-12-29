@@ -44,10 +44,7 @@ case class IntegerScalar(value: BigInt) extends RationalScalar(value, 1) {
   }
 
   override def pow(e: Int): RationalScalar =
-    if (e >= 0)
-      IntegerScalar(value pow e).canonicalScalar
-    else
-      reciprocal pow -e
+    IntegerScalar(value pow e).canonicalScalar
 
   override def label = value.toString
 
