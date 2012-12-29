@@ -33,11 +33,13 @@ package ca.eandb.units
 sealed abstract case class SymbolDef(name: String, units: Units)
 
 /** Represents a Units definition. */
-case class UnitDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
+case class UnitDef(override val name: String, override val units: Units)
+  extends SymbolDef(name, units)
 
 /**
  * Represents a prefix definition (may be combined with other Units to form new
  * Units.
  */
-case class PrefixDef(override val name: String, override val units: Units) extends SymbolDef(name, units)
+case class PrefixDef(override val name: String, override val units: Units)
+  extends SymbolDef(name, units)
 
