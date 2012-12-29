@@ -59,6 +59,15 @@ case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int])
   /** Splits this Scalar into integral and fractional parts. */
   def truncate: (IntegerScalar, Scalar) = canonicalScalar truncate
 
+  /**
+   * Combines the exponents from two ExactScalars
+   * @param f The combining function
+   * @param d1 The decimal components and associated exponents from the first
+   *   ExactScalar
+   * @param d1 The decimal components and associated exponents from the second
+   *   ExactScalar
+   * @returns The combined decimal components and their associated exponents
+   */
   private def combine(f: (Int, Int) => Int)
     (d1: Map[BigDecimal, Int], d2: Map[BigDecimal, Int]): Map[BigDecimal, Int] = {
 
@@ -70,18 +79,28 @@ case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int])
   }
 
   /**
+   * Creates a new exact scalar with the provided rational and decimal parts.
+   * @param r The rational part
+   * @param ds The decimal parts and their associated exponents
+   * @returns An exact representation of the product of the rational and decimal
+   *   parts
+   */
+  private def exact(r: RationalScalar, ds: Map[BigDecimal, Int]): Scalar =
+    if (ds isEmpty) r else ExactScalar(r, ds)
+
+  /**
    * Multiplies this Scalar with another.
    * @param that The Scalar to multiply by
    */
   def *(that: Scalar): Scalar = that match {
     case ExactScalar(r, ds) =>
-      ExactScalar(rational * r, combine(_ + _)(decimals, ds))
+      exact(rational * r, combine(_ + _)(decimals, ds))
     case OneUnits => this
     case r : RationalScalar => 
       ExactScalar(rational * r, decimals)
     case _ =>
       val ds = Map() + (that.decimalValue -> 1)
-      ExactScalar(rational, combine(_ + _)(decimals, ds))
+      exact(rational, combine(_ + _)(decimals, ds))
   }
 
   /**
@@ -102,7 +121,14 @@ case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int])
 
 object ExactScalar {
 
-  def apply(rational: RationalScalar, decimals: (BigDecimal, Int)*): ExactScalar =
-    ExactScalar(rational, Map() ++ decimals)
+  /**
+   * Creates a new exact scalar with the provided rational and decimal parts.
+   * @param rational The rational part
+   * @param decimals The decimal parts and their associated exponents
+   * @returns An exact representation of the product of the rational and decimal
+   *   parts
+   */
+  def apply(rational: RationalScalar, decimals: (BigDecimal, Int)*): Scalar =
+    if (decimals isEmpty) rational else ExactScalar(rational, Map() ++ decimals)
 
 }
