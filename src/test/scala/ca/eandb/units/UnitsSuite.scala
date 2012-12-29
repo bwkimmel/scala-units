@@ -30,6 +30,7 @@ import org.scalatest.BeforeAndAfter
 
 import Helpers._
 
+/** Test suite for operations on Units. */
 class UnitsSuite extends FunSuite with BeforeAndAfter {
 
   var u: UnitsParser = _
