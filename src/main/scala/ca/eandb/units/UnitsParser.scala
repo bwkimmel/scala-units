@@ -27,6 +27,7 @@ package ca.eandb.units
 
 import scala.collection.mutable
 import scala.util.parsing.combinator.JavaTokenParsers
+import scala.io.BufferedSource
 import scala.io.Source
 
 import java.util.Locale
@@ -197,8 +198,12 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    *   processed).
    * @param vars The current variable definitions (as indicated by "!set"
    *   statements).
+   * @param utf8 A value indicating whether UTF-8 blocks should be enabled
    */
-  private case class State(blocks: List[(String, Boolean)] = Nil, vars: Map[String, String] = Map()) {
+  private case class State(
+      blocks: List[(String, Boolean)] = Nil,
+      vars: Map[String, String] = Map(),
+      utf8: Boolean = false) {
 
     /**
      * Starts a new block.
@@ -227,6 +232,12 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
           "End block (%s) with no matching start".format(block))
     }
 
+    /** Starts a UTF8 block. */
+    def startUTF8 = start("utf8", utf8)
+
+    /** Ends a UTF8 block. */
+    def endUTF8 = end("utf8")
+
     /** Indicates whether statements should be processed in the current block */
     def enabled = blocks match {
       case Nil => true
@@ -253,8 +264,8 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
     val nop: State => State = (s: State) => s
     val word: Parser[String] = "\\w+".r
 
-    "!" ~ "utf8" ^^^ s(_.start("utf8", false)) |
-    "!" ~ "endutf8" ^^^ s(_.end("utf8")) |
+    "!" ~ "utf8" ^^^ s(_.startUTF8) |
+    "!" ~ "endutf8" ^^^ s(_.endUTF8) |
     "!" ~ "locale" ~> ident ^^ {
       case id => s(_.start("locale", locale.toString startsWith id)) } |
     "!" ~ "endlocale" ~ any ^^^ s(_.end("locale")) |
@@ -353,18 +364,35 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
    * Loads unit definitions from the provided Source.  Note that
    * <code>!include</code> directives will not be followed.
    * @param source The Source to read unit definitions from
+   * @param utf8 A value indicating whether UTF8 blocks should be enabled
    */
-  def load(source: Source) { (State() /: lines(source))(exec) }
+  def load(source: Source, utf8: Boolean = false) { (State(utf8 = utf8) /: lines(source))(exec) }
 
   /**
    * Loads unit definitions from the provided Source.  Note that
    * <code>!include</code> directives will not be followed.
    * @param source The Source to read unit definitions from
+   */
+  def load(source: BufferedSource) { load(source, source.codec.name == "UTF-8") }
+
+  /**
+   * Loads unit definitions from the provided Source.  Note that
+   * <code>!include</code> directives will not be followed.
+   * @param source The Source to read unit definitions from
+   * @param utf8 A value indicating whether UTF8 blocks should be enabled
    * @param handler The catch block to use to handle parsing exceptions
    */
-  def tryLoad(source: Source)(handler: PartialFunction[Throwable, Unit]) {
-    (State() /: lines(source))(tryExec(handler))
+  def tryLoad(source: Source, utf8: Boolean = false)(handler: PartialFunction[Throwable, Unit]) {
+    (State(utf8 = utf8) /: lines(source))(tryExec(handler))
   }
+
+  /**
+   * Loads unit definitions from the provided Source.  Note that
+   * <code>!include</code> directives will not be followed.
+   * @param source The Source to read unit definitions from
+   */
+  def tryLoad(source: BufferedSource): PartialFunction[Throwable, Unit] => Unit =
+    tryLoad(source, source.codec.name == "UTF-8")
 
   /**
    * Defines a new unit or prefix.  No attempt is made to resolve the unit
