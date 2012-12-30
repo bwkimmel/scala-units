@@ -70,7 +70,7 @@ object Helpers {
    *   greater than <code>maxd</code>, and who's value is equivalent to
    *   <code>x</code> within the precision of the default MathContext.
    */
-  def withMaxDenominator(maxd: BigInt)(x: Scalar): Scalar = x match {
+  def withMaxDenominator(maxd: BigInt)(x: Scalar): Scalar = x.canonicalScalar match {
     case RationalScalar(_, d) if d > maxd =>
       DecimalScalar(x.decimalValue).canonicalScalar
     case _ => x
@@ -82,7 +82,7 @@ object Helpers {
    * @return A non-rational scalar who's value is equivalent to
    *   <code>x</code> within the precision of the default MathContext.
    */
-  def withNoRationals(x: Scalar): Scalar = x match {
+  def withNoRationals(x: Scalar): Scalar = x.canonicalScalar match {
     case _: RationalScalar => DecimalScalar(x.decimalValue).canonicalScalar
     case _ => x
   }
@@ -95,7 +95,7 @@ object Helpers {
    *   MathContext (<code>mc</code>) will be applied.  If <code>x</code> is
    *   rational, no transformation is applied.
    */
-  def withMathContext(mc: MathContext)(x: Scalar): Scalar = x match {
+  def withMathContext(mc: MathContext)(x: Scalar): Scalar = x.canonicalScalar match {
     case DecimalScalar(value) => DecimalScalar(value(mc)).canonicalScalar
     case IntegerScalar(value) => DecimalScalar(BigDecimal(value)(mc)).canonicalScalar
     case _ => x
@@ -133,7 +133,7 @@ object Helpers {
    *   specified scale.  If <code>x</code> is rational, no transformation is
    *   applied.
    */
-  def withScale(scale: Int)(x: Scalar): Scalar = x match {
+  def withScale(scale: Int)(x: Scalar): Scalar = x.canonicalScalar match {
     case DecimalScalar(value) =>
       val mode = BigDecimal.RoundingMode.HALF_UP
       DecimalScalar(value setScale (scale, mode)).canonicalScalar
