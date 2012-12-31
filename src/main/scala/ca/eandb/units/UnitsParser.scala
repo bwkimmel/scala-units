@@ -135,7 +135,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
     "sqrt" ~ "(" ~> units <~ ")" ^^ { new DeferredPowerUnits.Sqrt(_) } |
     "cuberoot" ~ "(" ~> units <~ ")" ^^ { new DeferredPowerUnits.CubeRoot(_) } |
     UnitsFunction.builtIns
-      .map { case f => f.name ~ "(" ~> units <~ ")" ^^ f.bind }
+      .map { f => f.name ~ "(" ~> units <~ ")" ^^ f.bind }
       .reduce { _ | _ }
 
   private lazy val atom: Parser[Units] =
@@ -163,7 +163,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
   private lazy val divide: Parser[(Units, Units) => Units] = ("/" | "per") ^^^ { _ / _ }
 
   private lazy val term: Parser[Units] =
-    ("/" | "per") ~> term ^^ { case a => a.reciprocal } |
+    ("/" | "per") ~> term ^^ (_.reciprocal) |
     chainl1(factor, times | divide)
 
   private lazy val units: Parser[Units] = chainl1(term, plus | minus)
