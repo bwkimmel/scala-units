@@ -31,6 +31,22 @@ trait Units extends Ordered[Units] {
   /** <code>CanonicalUnits</code> equivalent to this instance. */
   def canonical: CanonicalUnits
 
+//  import OpMatchers._
+//  def normalize: Units = this match {
+//    case (a * b) * c => a * (b * c) normalize
+//    case (a / b) * c => (a * c) / b normalize
+//    case (a / b) / c => a / (b * c) normalize
+//    case a * (b / c) => (a * b) / c normalize
+//    case (a @ PrimitiveUnits(x)) * ((b @ PrimitiveUnits(y)) * c) if x > y => b * (a * c) normalize
+//    case a ~ n if n < 0 => OneUnits / a ~ -n normalize
+//    case OneUnits * b => b normalize
+//    case a * OneUnits => a normalize
+//    case (a: Scalar) * (b: Scalar) => a * b
+//    case (a: Scalar) / (b: Scalar) => a / b
+//    case a * (b: Scalar) => b * a
+//    case a / (b: Scalar) => b.reciprocal * a
+//  }
+
   /** Determines if these Units are dimensionless (scalar). */
   def isScalar: Boolean = false
 
