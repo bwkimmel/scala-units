@@ -108,6 +108,12 @@ class CommonUnits(units: UnitsParser) {
   lazy val cm = units("cm")
   lazy val km = units("km")
 
+  lazy val acre = units("acre")
+  lazy val acres = acre
+
+  lazy val hectare = units("hectare")
+  lazy val hectares = hectare
+
   lazy val hour = units("hour")
   lazy val hours = hour
   lazy val h = hour
