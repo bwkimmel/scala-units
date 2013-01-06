@@ -72,7 +72,7 @@ Unit Conversion
 
 ### Basic unit conversion
 
-To convert a value to different units, use the "in" operator:
+To convert a value to different units, use the `in` operator:
 
     val x = 1 (m) in ft 
     println(x)  // => 3.280839 ft
@@ -80,7 +80,7 @@ To convert a value to different units, use the "in" operator:
 ### Natural units
 
 To convert a value to the most natural of units from a sequence, use
-the "inOneOf" operator with multiple units in descending order by
+the `inOneOf` operator with multiple units in descending order by
 magnitude.  The units selected will be the first units for which the
 numerical value is at least 1, or the last units if none of the provided
 units yield a numerical value at least 1.
@@ -97,7 +97,7 @@ units yield a numerical value at least 1.
 ### Compound units
 
 To convert a value to compound units (e.g., hours, minutes, seconds),
-use the "in" operator with multiple units in descending order by
+use the `in` operator with multiple units in descending order by
 magnitude.  Each component will have an integral numerical value, except
 potentially the last component.  Zero-valued components will be dropped.
 
@@ -113,7 +113,7 @@ simply duplicate the last units:
     val x = 90.2 (seconds) in (hour, min, s, s)
     println(x)  // => List(1 min, 30 s, 0.2 s)
 
-To include zero-valued components, use "inAllOf":
+To include zero-valued components, use `inAllOf`:
 
     val x = 90.2 (seconds) inAllOf (hour, min, s)
     println(x)  // => List(0 hour, 1 min, 30.2 s)
@@ -127,21 +127,21 @@ Dimensional Analysis
 
 ### Canonical Form
 
-Units may be converted to canonical form using the "canonical" property.
+Units may be converted to canonical form using the `canonical` property.
 Canonical units are expressed as a scalar value and powers of primitive
 units.
 
     println(kW canonical)  // => 1000 kg m^2 s^-3
 
 Values may be converted between units if, in their canonical form, the
-exponents on all primitive units are identical.  The "dimensions"
+exponents on all primitive units are identical.  The `dimensions`
 property may be used to obtain a the exponents in the form of a Map:
 
     println(kW dimensions)  // => Map(kg -> 1, m -> 2, s -> -3)
 
 ### Testing for Compatibility
 
-To test for compatibility between units, use the "is" operator.
+To test for compatibility between units, use the `is` operator.
 
     val x = 55 (miles / hour)
     println(x is meter / second)  // => true
