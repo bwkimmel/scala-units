@@ -166,18 +166,56 @@ Contrary to the popular refrain:
 Operations on Units
 -------------------
 
-Any two units may be multiplied or divided, or exponentiated.
-Compatibile units are required for addition, subtraction, or
-comparisons.
+### Multiplication and Division
 
-    println(km > mile)  // => false
-    println(km > hour)  // => throws IncompatibleUnitsException
+Any two units may be multiplied or divided.  Multiplication uses the `*`
+operator.
 
-When adding or subtracting units, the result will be expressed in the
-units of the left operand.
+    println(2 (m) * 3 (ft) in sqft)  // => 19.685 ft^2
+    println(60 (W) * 8 (h) in btu)   // => 1637.828 btu
+    println(1 (kW * h) in J)         // => 3600000 J
+
+Division uses `/` or `per`:
+    
+    println(2000 (kcal) / 24 (hours) in W)  // => 96.917 W
+    println(55 (miles per hour) in km / h)  // => 88.514 km / hour
+
+Without specifying a unit conversion, the result will directly reflect
+the requested product or quotient.
+
+    println(2 (m) * 3(ft))             // => 2 m 3 ft
+    println(2000 (kcal) / 24 (hours))  // => 2000 kcal / (24 hour)
+
+
+### Exponentiation
+
+Any unit may be raised to an integer power using the `~` operator.
+
+    println(2 (ft~3) in L)                     // => 56.634 L
+    println(60 (mph) / 4.2 (s) in m * s~(-2))  // => 6.386 m / s^2
+
+The `~` operator is used instead of `^` because `~` has the correct
+precedence for exponentiation.
+
+
+### Addition and Subtraction
+
+Compatible units may be added or subtracted using the `+` and `-`
+operators.  If no conversion is specified, the result will be expressed
+in the units of the left operand.
 
     println(1 (min) + 30 (s))  // => 1.5 min
     println(30 (s) + 1 (min))  // => 90 s
+    println(80 (kg) + 3 (s))   // => throws IncompatibleUnitsException
+
+
+### Comparisons
+
+Compatible units may be compared
+
+    println(km > mile)      // => false
+    println(ft <= 12 (in))  // => true
+    println(km > hour)      // => throws IncompatibleUnitsException
 
 
 License
