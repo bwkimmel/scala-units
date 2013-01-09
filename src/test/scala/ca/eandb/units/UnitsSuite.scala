@@ -34,12 +34,14 @@ import Helpers._
 class UnitsSuite extends FunSuite with BeforeAndAfter {
 
   var u: UnitsParser = _
+  var s: Units = _
   var m: Units = _
   var in: Units = _
   var ft: Units = _
 
   before {
     u = new UnitsParser
+    u.define("s !")
     u.define("m !")
     u.define("c- 1e-2")
     u.define("inch 2.54 cm")
@@ -47,6 +49,7 @@ class UnitsSuite extends FunSuite with BeforeAndAfter {
     u.define("in inch")
     u.define("ft foot")
     
+    s = u("s")
     m = u("m")
     in = u("in")
     ft = u("ft")
@@ -61,6 +64,14 @@ class UnitsSuite extends FunSuite with BeforeAndAfter {
     val actual = 12 (in) inOneOf (ft, in)
     val expected = 1 (ft)
     assert(actual === expected)
+  }
+
+  test("operator /! allows division of compatible units") {
+    assert(2 (ft) /! 6 (in) === IntegerScalar(4))
+  }
+
+  test("operator /! does not allow divison of incompatible units") {
+    intercept[IncompatibleUnitsException](3 (m) /! 2 (s))
   }
 
 }

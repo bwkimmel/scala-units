@@ -56,8 +56,8 @@ case class ProductUnits(terms: List[Units]) extends Units {
   }
 
   override def convert(that: Units): ProductUnits = terms match {
-    case OneUnits :: rest => ProductUnits((that ratio this) :: rest)
-    case _ => ProductUnits((that ratio this) :: terms)
+    case OneUnits :: rest => ProductUnits((that /! this) :: rest)
+    case _ => ProductUnits((that /! this) :: terms)
   }
 
   override def termLabel = "(%s)".format(label)
