@@ -41,6 +41,9 @@ case class CanonicalUnits(scale: Scalar, override val dimensions: Map[PrimitiveU
   override def root = CanonicalUnits(OneUnits, dimensions)
   override def split = (scale, root)
 
+  override def convert(that: Units): CanonicalUnits =
+    CanonicalUnits(scale * (that ratio this), dimensions)
+
   override def mapScalars(f: Scalar => Scalar) = CanonicalUnits(f(scale), dimensions)
 
   def withoutDimensionless =

@@ -55,6 +55,11 @@ case class ProductUnits(terms: List[Units]) extends Units {
     result.toString
   }
 
+  override def convert(that: Units): ProductUnits = terms match {
+    case OneUnits :: rest => ProductUnits((that ratio this) :: rest)
+    case _ => ProductUnits((that ratio this) :: terms)
+  }
+
   override def termLabel = "(%s)".format(label)
 
   def canonical = terms.map(_.canonical).reduce(_ * _)

@@ -59,18 +59,27 @@ trait Units extends Ordered[Units] {
    * @throws IncompatibleUnitsException if the dimensions of these Units are
    *   different from the dimensions of <code>that</code>.
    */
-  def convertTo(that: Units): Units = {
-    val ratio = (this / that).canonical
-    if (!ratio.isScalar)
-      throw new IncompatibleUnitsException(this, that)
-    that match {
-      case CanonicalUnits(scale, dimensions) =>
-        CanonicalUnits(scale * ratio.scale, dimensions)
-      case ProductUnits(OneUnits :: rest) => ProductUnits(ratio.scale :: rest)
-      case ProductUnits(terms) => ProductUnits(ratio.scale :: terms)
-      case u => ProductUnits(List(ratio.scale, that))
+  final def convertTo(that: Units): Units = that convert this
+
+  /**
+   * Converts the provided quantity to these Units
+   * @param that The Units to convert
+   * @throws IncompatibleUnitsException if the dimensions of these Units are
+   *    different from the dimensions of <code>that</code>.
+   */
+  def convert(that: Units): Units = ProductUnits(List(that ratio this, this))
+
+  /**
+   * Computes the ratio between these Units and the provided Units
+   * @param that The Units to compare
+   * @throws IncompatibleUnitsException if the dimensions of these Units are
+   *   different from the dimensions of <code>that</code>.
+   */
+  protected[units] final def ratio(that: Units): Scalar =
+    (this / that).canonical.asScalarOption match {
+      case Some(ratio) => ratio
+      case None => throw new IncompatibleUnitsException(this, that)
     }
-  }
 
   /**
    * Converts these Units to the specified Units
@@ -226,7 +235,6 @@ trait Units extends Ordered[Units] {
    * @throws IncompatibleUnitsException if these Units cannot be converted to
    *   one of the provided sequence of Units.
    */
-
   def inOneOf(first: Units, rest: Units*): Units = inOneOf(first +: rest)
 
   /**
@@ -288,12 +296,7 @@ trait Units extends Ordered[Units] {
    * @throws IncompatibleUnitsException if these Units cannot be converted to
    *   <code>that</code>.
    */
-  def compare(that: Units): Int = {
-    val ratio = (this / that).canonical
-    if (!ratio.isScalar)
-      throw new IncompatibleUnitsException(this, that)
-    ratio.scale.decimalValue compare 1
-  }
+  def compare(that: Units): Int = ratio(that).decimalValue compare 1
 
   /**
    * Adds these Units to another.
