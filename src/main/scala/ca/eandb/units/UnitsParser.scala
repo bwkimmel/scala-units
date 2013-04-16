@@ -25,17 +25,22 @@
  */
 package ca.eandb.units
 
-import scala.collection.mutable
 import scala.util.parsing.combinator.JavaTokenParsers
 import scala.io.Source
 
 import java.util.Locale
 
 /** Parses units. */
-class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
+class UnitsParser(locale: Locale = Locale.getDefault, default: Option[UnitsParser] = None) extends JavaTokenParsers {
 
   /** Unit and prefix definitions. */
-  val _defs: mutable.Map[String, SymbolDef] = mutable.Map()
+  var _defs: Map[String, SymbolDef] = Map.empty
+
+  /**
+   * Creates a fork of this <code>UnitsParser</code>, allowing temporary
+   * definitions to be added without affecting this parser.
+   */
+  def fork = new UnitsParser(locale, Some(this))
 
   /**
    * An unresolved reference to derived units.
@@ -47,7 +52,8 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
   
     /** Expands these Units once according to the Units' definition. */
     private def resolve: Units = {
-      lazy val defs = _defs.lift
+      lazy val fallback = default.map(_._defs) getOrElse Map.empty
+      lazy val defs = _defs orElse fallback lift
   
       def splits(s: String): Seq[(String, String)] =
         for (i <- 0 to s.length) yield (s splitAt i)
@@ -241,7 +247,7 @@ class UnitsParser(locale: Locale = Locale.getDefault) extends JavaTokenParsers {
     def message(msg: String) { if (enabled) println(msg) }
 
     /** Defines a new unit or prefix */
-    def define(d: SymbolDef) { if (enabled) _defs.put(d.name, d) }
+    def define(d: SymbolDef) { if (enabled) _defs += (d.name -> d) }
 
   }
 

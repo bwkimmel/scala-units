@@ -467,5 +467,27 @@ class UnitsParserSuite extends FunSuite with BeforeAndAfter {
     }
   }
 
+  test("[fork] forking unit parser does not affect original") {
+    val v = u.fork
+    v.define("quatloo !")
+    intercept[UndefinedUnitsException] { u("quatloo").canonical }
+  }
+
+  test("[fork] forked unit parser can refer to units in original") {
+    u.define("s !")
+    val v = u.fork
+    assert(v("s").canonical === CanonicalUnits(OneUnits, PrimitiveUnits("s") -> 1))
+  }
+
+  test("[fork] can combine units in fork with those in original") {
+    u.define("s !")
+ 
+    val v = u.fork
+    v.define("frame !")
+    v.define("fps frame/s")
+    assert(v("30 fps").canonical ===
+      CanonicalUnits(IntegerScalar(30), PrimitiveUnits("frame") -> 1, PrimitiveUnits("s") -> -1))
+  }
+
 }
 
