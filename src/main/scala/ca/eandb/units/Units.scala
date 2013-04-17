@@ -70,6 +70,14 @@ trait Units extends Ordered[Units] {
   def convert(that: Units): Units = ProductUnits(List(that /! this, this))
 
   /**
+   * Computes the ratio between these Units and the provided Units as a Scalar.
+   * @param that The Units to compare
+   * @return <code>Some(this / that)</code> if <code>this</code> and
+   *   <code>that</code> have compatible units, or <code>None</code> otherwise.
+   */
+  final def /?(that: Units): Option[Scalar] = this / that asScalarOption
+
+  /**
    * Computes the ratio between these Units and the provided Units.  This
    * is equivalent to <code>this / that</code> except that the result must
    * be Scalar.
@@ -78,7 +86,7 @@ trait Units extends Ordered[Units] {
    *   different from the dimensions of <code>that</code>.
    */
   final def /!(that: Units): Scalar =
-    this / that asScalarOption match {
+    this /? that match {
       case Some(ratio) => ratio
       case None => throw new IncompatibleUnitsException(this, that)
     }
