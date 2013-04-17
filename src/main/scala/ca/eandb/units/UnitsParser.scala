@@ -334,6 +334,23 @@ class UnitsParser(locale: Locale = Locale.getDefault, default: Option[UnitsParse
 
   /**
    * Parses the specified units.  No attempt is made to resolve the provided
+   * units.
+   * @param expr The units expression.  Most valid GNU unit expressions are
+   *   supported.  Non-linear expressions (function calls) are not supported.
+   * @return Some(units) if the expression was parsed successfully, or None
+   *   otherwise.
+   * @see
+   *   <a href="http://www.gnu.org/software/units/manual/units.html#Unit-Expressions">
+   *     GNU Units - Unit Expressions
+   *   </a>
+   */
+  def parseOption(expr: String): Option[Units] = parseAll(units, expr) match {
+    case Success(u, _) => Some(u)
+    case _ => None
+  }
+
+  /**
+   * Parses the specified units.  No attempt is made to resolve the provided
    * units.  The <code>apply</code> method is provided for syntactical
    * convenience.
    *
