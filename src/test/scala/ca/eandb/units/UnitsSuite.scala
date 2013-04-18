@@ -74,5 +74,13 @@ class UnitsSuite extends FunSuite with BeforeAndAfter {
     intercept[IncompatibleUnitsException](3 (m) /! 2 (s))
   }
 
+  test("operator /? allows division of compatible units") {
+    assert(2 (ft) /? 6 (in) === Some(IntegerScalar(4)))
+  }
+
+  test("operator /? returns None for incompatible units") {
+    assert(3 (m) /? 2 (s) === None)
+  }
+
 }
 
