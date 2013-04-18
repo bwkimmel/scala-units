@@ -306,7 +306,7 @@ trait Units extends Ordered[Units] {
    * @throws IncompatibleUnitsException if these Units cannot be converted to
    *   <code>that</code>.
    */
-  def compare(that: Units): Int = (this /! that).decimalValue compare 1
+  def compare(that: Units): Int = (this - that).split._1.decimalValue compare 0
 
   /**
    * Adds these Units to another.

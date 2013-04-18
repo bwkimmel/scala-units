@@ -82,5 +82,30 @@ class UnitsSuite extends FunSuite with BeforeAndAfter {
     assert(3 (m) /? 2 (s) === None)
   }
 
+  test("can compare compatible units") {
+    assert(2 (ft) > 6 (in) === true)
+    assert(2 (ft) < 6 (in) === false)
+    assert(2 (ft) > 30 (in) === false)
+    assert(2 (ft) < 30 (in) === true)
+  }
+
+  test("can compare compatible units (negative)") {
+    assert(-2 (ft) > -6 (in) === false)
+    assert(-2 (ft) < -6 (in) === true)
+    assert(-2 (ft) > -30 (in) === true)
+    assert(-2 (ft) < -30 (in) === false)
+  }
+
+  test("can compare compatible units (opposite sign)") {
+    assert(-2 (ft) > 6 (in) === false)
+    assert(-2 (ft) < 6 (in) === true)
+    assert(-2 (ft) > 30 (in) === false)
+    assert(-2 (ft) < 30 (in) === true)
+    assert(2 (ft) > -6 (in) === true)
+    assert(2 (ft) < -6 (in) === false)
+    assert(2 (ft) > -30 (in) === true)
+    assert(2 (ft) < -30 (in) === false)
+  }
+
 }
 
