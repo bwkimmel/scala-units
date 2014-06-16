@@ -59,7 +59,7 @@ class UnitsParser(locale: Locale = Locale.getDefault, default: Option[UnitsParse
         for (i <- 0 to s.length) yield (s splitAt i)
   
       def resolveSplit(prefix: String, name: String) = (defs("%s-" format prefix), defs(name)) match {
-        case (Some(PrefixDef(_, scale)), Some(SymbolDef(_, base))) =>
+        case (Some(PrefixDef(_, scale)), Some(UnitDef(_, base))) =>
           Some(ProductUnits(List(scale, base)))
         case _ => None
       }

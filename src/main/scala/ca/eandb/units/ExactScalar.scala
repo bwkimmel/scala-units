@@ -95,7 +95,7 @@ case class ExactScalar(rational: RationalScalar, decimals: Map[BigDecimal, Int])
   def *(that: Scalar): Scalar = that match {
     case ExactScalar(r, ds) =>
       exact(rational * r, combine(_ + _)(decimals, ds))
-    case OneUnits => this
+    case IntegerScalar(n) if n == 1 => this
     case r : RationalScalar => 
       ExactScalar(rational * r, decimals)
     case _ =>

@@ -30,7 +30,7 @@ package ca.eandb.units
  * @param name The name of the symbol begin defined
  * @param units The definition of the symbol
  */
-sealed abstract case class SymbolDef(name: String, units: Units)
+sealed abstract class SymbolDef(val name: String, val units: Units)
 
 /** Represents a Units definition. */
 case class UnitDef(override val name: String, override val units: Units)

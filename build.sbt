@@ -1,9 +1,10 @@
 name := "Units"
 
-version := "0.1"
+version := "0.2"
 
-scalaVersion := "2.9.2"
+scalaVersion := "2.11.1"
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "1.6.1" % "test"
+  "org.scalatest" %% "scalatest" % "2.2.0" % "test",
+  "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1"
 )

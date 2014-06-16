@@ -26,7 +26,7 @@
 package ca.eandb.units
 
 /** The multiplicative identity. */
-case object OneUnits extends IntegerScalar(1) {
+object OneUnits extends IntegerScalar(1) {
   override def canonicalScalar = this
   override def truncate = (this, IntegerScalar(0))
   override def unary_- = IntegerScalar(-1)

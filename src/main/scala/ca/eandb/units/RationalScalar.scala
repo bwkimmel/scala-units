@@ -58,7 +58,7 @@ class RationalScalar(val n: BigInt, val d: BigInt) extends Scalar {
   }
 
   def +(that: Scalar) = that match {
-    case OneUnits => RationalScalar(n + d, d).canonicalScalar
+    case IntegerScalar(n2) if n2 == 1 => RationalScalar(n + d, d).canonicalScalar
     case IntegerScalar(n2) => RationalScalar(n + n2 * d, d).canonicalScalar
     case RationalScalar(n2, d2) => RationalScalar(n * d2 + n2 * d, d * d2).canonicalScalar
     case _ => DecimalScalar(decimalValue + that.decimalValue).canonicalScalar
@@ -67,7 +67,7 @@ class RationalScalar(val n: BigInt, val d: BigInt) extends Scalar {
   override def unary_- = RationalScalar(-n, d)
 
   def *(that: RationalScalar): RationalScalar = that match {
-    case OneUnits => this
+    case IntegerScalar(n2) if n2 == 1 => this
     case IntegerScalar(n2) => RationalScalar(n * n2, d).canonicalScalar
     case RationalScalar(n2, d2) => RationalScalar(n * n2, d * d2).canonicalScalar
   }

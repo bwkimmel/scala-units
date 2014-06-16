@@ -44,7 +44,7 @@ case class DecimalScalar(value: BigDecimal) extends Scalar {
   override def unary_- = DecimalScalar(-value).canonicalScalar
 
   override def *(that: Scalar) = that match {
-    case OneUnits => this
+    case IntegerScalar(n) if n == 1 => this
     case DecimalScalar(other) => ExactScalar(OneUnits, value -> 1, other -> 1)
     case e: ExactScalar => e * this
     case r: RationalScalar => ExactScalar(r, value -> 1)

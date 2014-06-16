@@ -36,7 +36,7 @@ case class IntegerScalar(value: BigInt) extends RationalScalar(value, 1) {
   override def unary_- = IntegerScalar(-value).canonicalScalar
 
   override def *(that: Scalar) = that match {
-    case OneUnits => this
+    case IntegerScalar(n) if n == 1 => this
     case IntegerScalar(n) => IntegerScalar(value * n).canonicalScalar
     case RationalScalar(n, d) => RationalScalar(value * n, d).canonicalScalar
     case e: ExactScalar => e * this

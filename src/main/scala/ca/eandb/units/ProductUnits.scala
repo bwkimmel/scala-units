@@ -56,7 +56,7 @@ case class ProductUnits(terms: List[Units]) extends Units {
   }
 
   override def convert(that: Units): ProductUnits = terms match {
-    case OneUnits :: rest => ProductUnits((that /! this) :: rest)
+    case IntegerScalar(n) :: rest if n == 1 => ProductUnits((that /! this) :: rest)
     case _ => ProductUnits((that /! this) :: terms)
   }
 
